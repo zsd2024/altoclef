@@ -24,16 +24,20 @@ import net.minecraft.screen.slot.SlotActionType;
 
 import java.util.Optional;
 
+/**
+ * 玩家交互修复链 - 处理玩家交互中的各种修复操作
+ * 包括自动装备最佳工具、清理光标中的物品、自动关闭屏幕等
+ */
 public class PlayerInteractionFixChain extends TaskChain {
-    private final TimerGame stackHeldTimeout = new TimerGame(1);
-    private final TimerGame generalDuctTapeSwapTimeout = new TimerGame(30);
-    private final TimerGame shiftDepressTimeout = new TimerGame(10);
-    private final TimerGame betterToolTimer = new TimerGame(0);
-    private final TimerGame mouseMovingButScreenOpenTimeout = new TimerGame(1);
-    private ItemStack lastHandStack = null;
+    private final TimerGame stackHeldTimeout = new TimerGame(1); // 物品持有超时计时器
+    private final TimerGame generalDuctTapeSwapTimeout = new TimerGame(30); // 通用修复交换超时计时器
+    private final TimerGame shiftDepressTimeout = new TimerGame(10); // Shift键按下超时计时器
+    private final TimerGame betterToolTimer = new TimerGame(0); // 更好工具计时器
+    private final TimerGame mouseMovingButScreenOpenTimeout = new TimerGame(1); // 鼠标移动但屏幕打开超时计时器
+    private ItemStack lastHandStack = null; // 上一次光标中的物品栈
 
-    private Screen lastScreen;
-    private Rotation lastLookRotation;
+    private Screen lastScreen; // 上一个屏幕
+    private Rotation lastLookRotation; // 上一次的视角旋转
 
     public PlayerInteractionFixChain(TaskRunner runner) {
         super(runner);
@@ -41,16 +45,17 @@ public class PlayerInteractionFixChain extends TaskChain {
 
     @Override
     protected void onStop() {
-
+        // 停止时无需特殊处理
     }
 
     @Override
     public void onInterrupt(TaskChain other) {
-
+        // 被其他链中断时无需特殊处理
     }
 
     @Override
     protected void onTick() {
+        // 每个刻度的处理在getPriority()中实现
     }
 
     @Override
@@ -60,22 +65,22 @@ public class PlayerInteractionFixChain extends TaskChain {
         AltoClef mod = AltoClef.getInstance();
 
         if (mod.getUserTaskChain().isActive() && betterToolTimer.elapsed()) {
-            // Equip the right tool for the job if we're not using one.
+            // 如果我们没有使用正确的工具，则装备合适的工具
             betterToolTimer.reset();
             if (mod.getControllerExtras().isBreakingBlock()) {
                 BlockState state = mod.getWorld().getBlockState(mod.getControllerExtras().getBreakingBlockPos());
                 Optional<Slot> bestToolSlot = StorageHelper.getBestToolSlot(mod, state);
                 Slot currentEquipped = PlayerSlot.getEquipSlot();
 
-                // if baritone is running, only accept tools OUTSIDE OF HOTBAR!
-                // Baritone will take care of tools inside the hotbar.
+                // 如果baritone正在运行，只接受工具栏外的工具！
+                // Baritone会处理工具栏内的工具
                 if (bestToolSlot.isPresent() && !bestToolSlot.get().equals(currentEquipped)) {
-                    // ONLY equip if the item class is STRICTLY different (otherwise we swap around a lot)
+                    // 仅当物品类严格不同时才装备（否则我们会频繁交换）
                     if (StorageHelper.getItemStackInSlot(currentEquipped).getItem() != StorageHelper.getItemStackInSlot(bestToolSlot.get()).getItem()) {
                         boolean isAllowedToManage = (!mod.getClientBaritone().getPathingBehavior().isPathing() ||
                                 bestToolSlot.get().getInventorySlot() >= 9) && !mod.getFoodChain().isTryingToEat();
                         if (isAllowedToManage) {
-                            Debug.logMessage("Found better tool in inventory, equipping.");
+                            Debug.logMessage("在库存中找到更好的工具，正在装备。");
                             ItemStack bestToolItemStack = StorageHelper.getItemStackInSlot(bestToolSlot.get());
                             Item bestToolItem = bestToolItemStack.getItem();
                             mod.getSlotHandler().forceEquipItem(bestToolItem);
@@ -85,7 +90,7 @@ public class PlayerInteractionFixChain extends TaskChain {
             }
         }
 
-        // Unpress shift (it gets stuck for some reason???)
+        // 释放shift键（由于某种原因它会卡住???）
         if (mod.getInputControls().isHeldDown(Input.SNEAK)) {
             if (shiftDepressTimeout.elapsed()) {
                 mod.getInputControls().release(Input.SNEAK);
@@ -94,10 +99,10 @@ public class PlayerInteractionFixChain extends TaskChain {
             shiftDepressTimeout.reset();
         }
 
-        // Refresh inventory
+        // 刷新库存
         if (generalDuctTapeSwapTimeout.elapsed()) {
             if (!mod.getControllerExtras().isBreakingBlock()) {
-                Debug.logMessage("Refreshed inventory...");
+                Debug.logMessage("已刷新库存...");
                 mod.getSlotHandler().refreshInventory();
                 generalDuctTapeSwapTimeout.reset();
                 return Float.NEGATIVE_INFINITY;
@@ -109,7 +114,7 @@ public class PlayerInteractionFixChain extends TaskChain {
         if (currentStack != null && !currentStack.isEmpty()) {
             //noinspection PointlessNullCheck
             if (lastHandStack == null || !ItemStack.areEqual(currentStack, lastHandStack)) {
-                // We're holding a new item in our stack!
+                // 我们在光标中持有了一个新物品！
                 stackHeldTimeout.reset();
                 lastHandStack = currentStack.copy();
             }
@@ -118,7 +123,7 @@ public class PlayerInteractionFixChain extends TaskChain {
             lastHandStack = null;
         }
 
-        // If we have something in our hand for a period of time...
+        // 如果我们在手中持有一段时间...
         if (lastHandStack != null && stackHeldTimeout.elapsed()) {
             Optional<Slot> moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(lastHandStack, false);
             if (moveTo.isPresent()) {
@@ -130,7 +135,7 @@ public class PlayerInteractionFixChain extends TaskChain {
                 return Float.NEGATIVE_INFINITY;
             }
             Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-            // Try throwing away cursor slot if it's garbage
+            // 如果光标槽是垃圾，尝试丢弃
             if (garbage.isPresent()) {
                 mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                 return Float.NEGATIVE_INFINITY;
@@ -140,7 +145,7 @@ public class PlayerInteractionFixChain extends TaskChain {
         }
 
         if (shouldCloseOpenScreen()) {
-            //Debug.logMessage("Closed screen since we changed our look.");
+            //Debug.logMessage("由于我们改变了视角，关闭了屏幕。");
             ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
             if (!cursorStack.isEmpty()) {
                 Optional<Slot> moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
@@ -153,7 +158,7 @@ public class PlayerInteractionFixChain extends TaskChain {
                     return Float.NEGATIVE_INFINITY;
                 }
                 Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-                // Try throwing away cursor slot if it's garbage
+                // 如果光标槽是垃圾，尝试丢弃
                 if (garbage.isPresent()) {
                     mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                     return Float.NEGATIVE_INFINITY;
@@ -168,21 +173,25 @@ public class PlayerInteractionFixChain extends TaskChain {
         return Float.NEGATIVE_INFINITY;
     }
 
+    /**
+     * 检查是否应该关闭打开的屏幕
+     * @return 如果应该关闭屏幕则返回true
+     */
     private boolean shouldCloseOpenScreen() {
         if (!AltoClef.getInstance().getModSettings().shouldCloseScreenWhenLookingOrMining())
             return false;
 
-        // Only check look if we've had the same screen open for a while
+        // 只有在相同屏幕打开一段时间后才检查视角
         Screen openScreen = MinecraftClient.getInstance().currentScreen;
         if (openScreen != lastScreen) {
             mouseMovingButScreenOpenTimeout.reset();
         }
-        // We're in the player screen/a screen we DON'T want to cancel out of
+        // 我们在播放器屏幕/我们不想退出的屏幕
         if (openScreen == null || openScreen instanceof ChatScreen || openScreen instanceof GameMenuScreen || openScreen instanceof DeathScreen) {
             mouseMovingButScreenOpenTimeout.reset();
             return false;
         }
-        // Check for rotation change
+        // 检查旋转变化
         Rotation look = LookHelper.getLookRotation();
         if (lastLookRotation != null && mouseMovingButScreenOpenTimeout.elapsed()) {
             Rotation delta = look.subtract(lastLookRotation);
@@ -190,7 +199,7 @@ public class PlayerInteractionFixChain extends TaskChain {
                 lastLookRotation = look;
                 return true;
             }
-            // do NOT update our last look rotation, just because we want to measure long term rotation.
+            // 不要更新我们的最后视角旋转，只是因为我们想要测量长期旋转
         } else {
             lastLookRotation = look;
         }
@@ -205,6 +214,6 @@ public class PlayerInteractionFixChain extends TaskChain {
 
     @Override
     public String getName() {
-        return "Hand Stack Fix Chain";
+        return "手持物品栈修复链";
     }
 }

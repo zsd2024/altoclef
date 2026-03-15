@@ -45,56 +45,56 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * Central access point for AltoClef
+ * AltoClef 中心访问点 - 主要入口点和核心控制器
  */
 public class AltoClef implements ModInitializer {
 
-    // Static access to altoclef
+    // 静态访问 altoclef 的队列
     private static final Queue<Consumer<AltoClef>> _postInitQueue = new ArrayDeque<>();
 
-    // Central Managers
-    private static CommandExecutor commandExecutor;
-    private TaskRunner taskRunner;
-    private TrackerManager trackerManager;
-    private BotBehaviour botBehaviour;
-    private PlayerExtraController extraController;
-    // Task chains
-    private UserTaskChain userTaskChain;
-    private FoodChain foodChain;
-    private MobDefenseChain mobDefenseChain;
-    private MLGBucketFallChain mlgBucketChain;
-    // Trackers
-    private ItemStorageTracker storageTracker;
-    private ContainerSubTracker containerSubTracker;
-    private EntityTracker entityTracker;
-    private BlockScanner blockScanner;
-    private SimpleChunkTracker chunkTracker;
-    private MiscBlockTracker miscBlockTracker;
-    private CraftingRecipeTracker craftingRecipeTracker;
-    // Renderers
-    private CommandStatusOverlay commandStatusOverlay;
-    private AltoClefTickChart altoClefTickChart;
-    // Settings
-    private adris.altoclef.Settings settings;
-    // Misc managers/input
-    private MessageSender messageSender;
-    private InputControls inputControls;
-    private SlotHandler slotHandler;
-    // Butler
-    private Butler butler;
-    // Pausing
-    private boolean paused = false;
-    private Task storedTask;
+    // 中心管理器
+    private static CommandExecutor commandExecutor;  // 命令执行器
+    private TaskRunner taskRunner;                   // 任务运行器
+    private TrackerManager trackerManager;           // 跟踪器管理器
+    private BotBehaviour botBehaviour;               // 机器人行为控制器
+    private PlayerExtraController extraController;   // 玩家额外控制器
+    // 任务链
+    private UserTaskChain userTaskChain;             // 用户任务链
+    private FoodChain foodChain;                     // 食物链
+    private MobDefenseChain mobDefenseChain;         // 怪物防御链
+    private MLGBucketFallChain mlgBucketChain;       // MLG水桶链
+    // 跟踪器
+    private ItemStorageTracker storageTracker;       // 物品存储跟踪器
+    private ContainerSubTracker containerSubTracker; // 容器子跟踪器
+    private EntityTracker entityTracker;             // 实体跟踪器
+    private BlockScanner blockScanner;               // 区块扫描器
+    private SimpleChunkTracker chunkTracker;         // 简单区块跟踪器
+    private MiscBlockTracker miscBlockTracker;       // 杂项区块跟踪器
+    private CraftingRecipeTracker craftingRecipeTracker; // 合成配方跟踪器
+    // 渲染器
+    private CommandStatusOverlay commandStatusOverlay;     // 命令状态覆盖层
+    private AltoClefTickChart altoClefTickChart;         // AltoClef Tick图表
+    // 设置
+    private adris.altoclef.Settings settings;            // 设置
+    // 杂项管理器/输入
+    private MessageSender messageSender;                 // 消息发送器
+    private InputControls inputControls;                 // 输入控制器
+    private SlotHandler slotHandler;                     // 槽位处理器
+    // 管家
+    private Butler butler;                               // 管家功能
+    // 暂停
+    private boolean paused = false;                      // 是否暂停
+    private Task storedTask;                             // 存储暂停时的任务
 
-    private static AltoClef instance;
+    private static AltoClef instance;                    // 单例实例
 
-    // Are we in game (playing in a server/world)
+    // 是否在游戏中（在服务器/世界中游玩）
     public static boolean inGame() {
         return MinecraftClient.getInstance().player != null && MinecraftClient.getInstance().getNetworkHandler() != null;
     }
 
     /**
-     * Executes commands (ex. `@get`/`@gamer`)
+     * 执行命令（例如 `@get`/`@gamer`）
      */
     public static CommandExecutor getCommandExecutor() {
         return commandExecutor;
@@ -102,31 +102,31 @@ public class AltoClef implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        // This code runs as soon as Minecraft is in a mod-load-ready state.
-        // However, some things (like resources) may still be uninitialized.
-        // As such, nothing will be loaded here but basic initialization.
+        // 此代码在Minecraft处于mod加载就绪状态时立即运行
+        // 但是，某些内容（如资源）可能仍未初始化
+        // 因此，这里只会进行基本初始化，不会加载任何内容
         EventBus.subscribe(TitleScreenEntryEvent.class, evt -> onInitializeLoad());
 
         if (instance != null) {
-            throw new IllegalStateException("AltoClef already loaded!");
+            throw new IllegalStateException("AltoClef 已经加载！");
         }
         instance = this;
     }
 
     public void onInitializeLoad() {
-        // This code should be run after Minecraft loads everything else in.
-        // This is the actual start point, controlled by a mixin.
+        // 此代码应当在Minecraft加载完其他所有内容后运行
+        // 这是实际的启动点，由mixin控制
 
         initializeBaritoneSettings();
 
-        // Central Managers
+        // 中心管理器
         commandExecutor = new CommandExecutor(this);
         taskRunner = new TaskRunner(this);
         trackerManager = new TrackerManager(this);
         botBehaviour = new BotBehaviour(this);
         extraController = new PlayerExtraController(this);
 
-        // Task chains
+        // 任务链
         userTaskChain = new UserTaskChain(taskRunner);
         mobDefenseChain = new MobDefenseChain(taskRunner);
         new DeathMenuChain(taskRunner);
@@ -137,7 +137,7 @@ public class AltoClef implements ModInitializer {
         new WorldSurvivalChain(taskRunner);
         foodChain = new FoodChain(taskRunner);
 
-        // Trackers
+        // 跟踪器
         storageTracker = new ItemStorageTracker(this, trackerManager, container -> containerSubTracker = container);
         entityTracker = new EntityTracker(trackerManager);
         blockScanner = new BlockScanner(this);
@@ -145,11 +145,11 @@ public class AltoClef implements ModInitializer {
         miscBlockTracker = new MiscBlockTracker(this);
         craftingRecipeTracker = new CraftingRecipeTracker(trackerManager);
 
-        // Renderers
+        // 渲染器
         commandStatusOverlay = new CommandStatusOverlay();
         altoClefTickChart = new AltoClefTickChart(MinecraftClient.getInstance().textRenderer);
 
-        // Misc managers
+        // 杂项管理器
         messageSender = new MessageSender();
         inputControls = new InputControls();
         slotHandler = new SlotHandler(this);
@@ -158,26 +158,26 @@ public class AltoClef implements ModInitializer {
 
         initializeCommands();
 
-        // Load settings
+        // 加载设置
         adris.altoclef.Settings.load(newSettings -> {
             settings = newSettings;
-            // Baritone's `acceptableThrowawayItems` should match our own.
+            // Baritone的`acceptableThrowawayItems`应该与我们自己的匹配
             List<Item> baritoneCanPlace = Arrays.stream(settings.getThrowawayItems(true))
                     .filter(item -> item != Items.SOUL_SAND && item != Items.MAGMA_BLOCK && item != Items.SAND && item
                             != Items.GRAVEL).toList();
             getClientBaritoneSettings().acceptableThrowawayItems.value.addAll(baritoneCanPlace);
-            // If we should run an idle command...
+            // 如果我们应该运行空闲命令...
             if ((!getUserTaskChain().isActive() || getUserTaskChain().isRunningIdleTask()) && getModSettings().shouldRunIdleCommandWhenNotActive()) {
                 getUserTaskChain().signalNextTaskToBeIdleTask();
                 getCommandExecutor().executeWithPrefix(getModSettings().getIdleCommand());
             }
-            // Don't break blocks or place blocks where we are explicitly protected.
+            // 不要在我们明确保护的位置破坏或放置方块
             getExtraBaritoneSettings().avoidBlockBreak(blockPos -> settings.isPositionExplicitlyProtected(blockPos));
             getExtraBaritoneSettings().avoidBlockPlace(blockPos -> settings.isPositionExplicitlyProtected(blockPos));
             getExtraBaritoneSettings().getForceSaveToolPredicates().add((state, item) -> StorageHelper.shouldSaveStack(this, state.getBlock(), item));
         });
 
-        // Receive + cancel chat
+        // 接收+取消聊天
         EventBus.subscribe(SendChatEvent.class, evt -> {
             String line = evt.message;
             if (getCommandExecutor().isClientCommand(line)) {
@@ -186,40 +186,40 @@ public class AltoClef implements ModInitializer {
             }
         });
 
-        // Tick with the client
+        // 与客户端同步Tick
         EventBus.subscribe(ClientTickEvent.class, evt -> {
             long nanos = System.nanoTime();
             onClientTick();
             altoClefTickChart.pushTickNanos(System.nanoTime()-nanos);
         });
 
-        // Render
+        // 渲染
         EventBus.subscribe(ClientRenderEvent.class, evt -> onClientRenderOverlay(evt.context));
 
-        // Playground
+        // 测试场
         Playground.IDLE_TEST_INIT_FUNCTION(this);
 
-        // Tasks
+        // 任务
         TaskCatalogue.init();
 
         getClientBaritone().getGameEventHandler().registerEventListener(new TabCompleter());
 
-        // External mod initialization
+        // 外部mod初始化
         runEnqueuedPostInits();
     }
 
-    // Client tick
+    // 客户端Tick
     private void onClientTick() {
         runEnqueuedPostInits();
 
         inputControls.onTickPre();
 
-        // Cancel shortcut
+        // 取消快捷键
         if (InputHelper.isKeyPressed(GLFW.GLFW_KEY_LEFT_CONTROL) && InputHelper.isKeyPressed(GLFW.GLFW_KEY_K)) {
             stopTasks();
         }
 
-        // TODO: should this go here?
+        // TODO: 这应该放在这里吗？
         storageTracker.setDirty();
         containerSubTracker.onServerTick();
         miscBlockTracker.tick();
@@ -273,76 +273,76 @@ public class AltoClef implements ModInitializer {
                 Blocks.SMALL_AMETHYST_BUD, Blocks.MEDIUM_AMETHYST_BUD, Blocks.LARGE_AMETHYST_BUD,
                 Blocks.AMETHYST_CLUSTER, Blocks.SCULK, Blocks.SCULK_VEIN));
 
-        // dont try to break nether portal block
+        // 不要尝试破坏下界传送门方块
         getClientBaritoneSettings().blocksToAvoidBreaking.value.add(Blocks.NETHER_PORTAL);
         getClientBaritoneSettings().blocksToDisallowBreaking.value.add(Blocks.NETHER_PORTAL);
 
-        // Let baritone move items to hotbar to use them
-        // Reduces a bit of far rendering to save FPS
+        // 让baritone移动物品到快捷栏来使用它们
+        // 减少一些远距离渲染以节省FPS
         getClientBaritoneSettings().fadePath.value = true;
-        // Don't let baritone scan dropped items, we handle that ourselves.
+        // 不要让baritone扫描掉落物品，我们自己处理
         getClientBaritoneSettings().mineScanDroppedItems.value = false;
-        // Don't let baritone wait for drops, we handle that ourselves.
+        // 不要让baritone等待掉落物，我们自己处理
         getClientBaritoneSettings().mineDropLoiterDurationMSThanksLouca.value = 0L;
 
-        // Water bucket placement will be handled by us exclusively
+        // 水桶放置将由我们专门处理
         getExtraBaritoneSettings().configurePlaceBucketButDontFall(true);
 
-        // For render smoothing
+        // 为了渲染平滑
         getClientBaritoneSettings().randomLooking.value = 0.0;
         getClientBaritoneSettings().randomLooking113.value = 0.0;
 
-        // Give baritone more time to calculate paths. Sometimes they can be really far away.
-        // Was: 2000L
+        // 给baritone更多时间来计算路径。有时候它们可能非常远
+        // 原值: 2000L
         getClientBaritoneSettings().failureTimeoutMS.reset();
-        // Was: 5000L
+        // 原值: 5000L
         getClientBaritoneSettings().planAheadFailureTimeoutMS.reset();
-        // Was 100
+        // 原值 100
         getClientBaritoneSettings().movementTimeoutTicks.reset();
     }
 
-    // List all command sources here.
+    // 在此处列出所有命令源
     private void initializeCommands() {
         try {
-            // This creates the commands. If you want any more commands feel free to initialize new command lists.
+            // 这里创建命令。如果需要更多命令，可以自由初始化新的命令列表
             AltoClefCommands.init();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // TODO refactor codebase to use this instead of passing an argument around
+    // TODO 重构代码库以使用此方法，而不是到处传递参数
     /**
-     * @return the instance of this class or null if it has not been initialized yet
+     * @return 此类的实例，如果尚未初始化则返回null
      */
     public static AltoClef getInstance() {
         return instance;
     }
 
     /**
-     * Runs the highest priority task chain
-     * (task chains run the task tree)
+     * 运行最高优先级的任务链
+     * (任务链运行任务树)
      */
     public TaskRunner getTaskRunner() {
         return taskRunner;
     }
 
     /**
-     * The user task chain (runs your command. Ex. Get Diamonds, Beat the Game)
+     * 用户任务链 (运行您的命令。例如：获取钻石，通关游戏)
      */
     public UserTaskChain getUserTaskChain() {
         return userTaskChain;
     }
 
     /**
-     * Controls bot behaviours, like whether to temporarily "protect" certain blocks or items
+     * 控制机器人行为，比如是否临时"保护"某些方块或物品
      */
     public BotBehaviour getBehaviour() {
         return botBehaviour;
     }
 
     /**
-     * Controls tasks, for pausing and unpausing the bot
+     * 控制任务，用于暂停和恢复机器人
      */
     public boolean isPaused() {
         return paused;
@@ -353,63 +353,63 @@ public class AltoClef implements ModInitializer {
     }
 
     /**
-     * storages the task you where doing before pausing.
+     * 存储暂停前正在进行的任务
      */
     public void setStoredTask(Task currentTask) {
         this.storedTask = currentTask;
     }
 
     /**
-     * Gets the task you where doing before pausing.
+     * 获取暂停前正在进行的任务
      */
     public Task getStoredTask() {
         return storedTask;
     }
 
     /**
-     * Tracks items in your inventory and in storage containers.
+     * 跟踪物品在你的背包和存储容器中的状态
      */
     public ItemStorageTracker getItemStorage() {
         return storageTracker;
     }
 
     /**
-     * Tracks loaded entities
+     * 跟踪已加载的实体
      */
     public EntityTracker getEntityTracker() {
         return entityTracker;
     }
 
     /**
-     * Manages a list of all available recipes
+     * 管理所有可用配方的列表
      */
     public CraftingRecipeTracker getCraftingRecipeTracker() {
         return craftingRecipeTracker;
     }
 
     /**
-     * Tracks blocks and their positions - better version of BlockTracker
+     * 跟踪方块及其位置 - BlockTracker的更好版本
      */
     public BlockScanner getBlockScanner() {
         return blockScanner;
     }
 
     /**
-     * Tracks of whether a chunk is loaded/visible or not
+     * 跟踪区块是否已加载/可见
      */
     public SimpleChunkTracker getChunkTracker() {
         return chunkTracker;
     }
 
     /**
-     * Tracks random block things, like the last nether portal we used
+     * 跟踪随机区块事物，比如我们上次使用的下界传送门
      */
     public MiscBlockTracker getMiscBlockTracker() {
         return miscBlockTracker;
     }
 
     /**
-     * Baritone access (could just be static honestly)
+     * Baritone访问 (实际上可以是静态的)
      */
     public Baritone getClientBaritone() {
         if (getPlayer() == null) {
@@ -419,84 +419,84 @@ public class AltoClef implements ModInitializer {
     }
 
     /**
-     * Baritone settings access (could just be static honestly)
+     * Baritone设置访问 (实际上可以是静态的)
      */
     public Settings getClientBaritoneSettings() {
         return Baritone.settings();
     }
 
     /**
-     * Baritone settings special to AltoClef (could just be static honestly)
+     * AltoClef专用的Baritone设置 (实际上可以是静态的)
      */
     public AltoClefSettings getExtraBaritoneSettings() {
         return AltoClefSettings.getInstance();
     }
 
     /**
-     * AltoClef Settings
+     * AltoClef设置
      */
     public adris.altoclef.Settings getModSettings() {
         return settings;
     }
 
     /**
-     * Butler controller. Keeps track of users and lets you receive user messages
+     * 管家控制器。跟踪用户并让您接收用户消息
      */
     public Butler getButler() {
         return butler;
     }
 
     /**
-     * Sends chat messages (avoids auto-kicking)
+     * 发送聊天消息 (避免自动踢出)
      */
     public MessageSender getMessageSender() {
         return messageSender;
     }
 
     /**
-     * Does Inventory/container slot actions
+     * 执行背包/容器槽位操作
      */
     public SlotHandler getSlotHandler() {
         return slotHandler;
     }
 
     /**
-     * Minecraft player client access (could just be static honestly)
+     * Minecraft玩家客户端访问 (实际上可以是静态的)
      */
     public ClientPlayerEntity getPlayer() {
         return MinecraftClient.getInstance().player;
     }
 
     /**
-     * Minecraft world access (could just be static honestly)
+     * Minecraft世界访问 (实际上可以是静态的)
      */
     public ClientWorld getWorld() {
         return MinecraftClient.getInstance().world;
     }
 
     /**
-     * Minecraft client interaction controller access (could just be static honestly)
+     * Minecraft客户端交互控制器访问 (实际上可以是静态的)
      */
     public ClientPlayerInteractionManager getController() {
         return MinecraftClient.getInstance().interactionManager;
     }
 
     /**
-     * Extra controls not present in ClientPlayerInteractionManager. This REALLY should be made static or combined with something else.
+     * ClientPlayerInteractionManager中不存在的额外控制。这真的应该设为静态或与某些其他组件合并。
      */
     public PlayerExtraController getControllerExtras() {
         return extraController;
     }
 
     /**
-     * Manual control over input actions (ex. jumping, attacking)
+     * 手动控制输入操作 (例如：跳跃，攻击)
      */
     public InputControls getInputControls() {
         return inputControls;
     }
 
     /**
-     * Run a user task
+     * 运行用户任务
      */
     public void runUserTask(Task task) {
         runUserTask(task, () -> {
@@ -504,35 +504,35 @@ public class AltoClef implements ModInitializer {
     }
 
     /**
-     * Run a user task
+     * 运行用户任务
      */
     public void runUserTask(Task task, Runnable onFinish) {
         userTaskChain.runTask(this, task, onFinish);
     }
 
     /**
-     * Cancel currently running user task
+     * 取消当前运行的用户任务
      */
     public void cancelUserTask() {
         userTaskChain.cancel(this);
     }
 
     /**
-     * Takes control away to eat food
+     * 接管控制权以进食
      */
     public FoodChain getFoodChain() {
         return foodChain;
     }
 
     /**
-     * Takes control away to defend against mobs
+     * 接管控制权以防御怪物
      */
     public MobDefenseChain getMobDefenseChain() {
         return mobDefenseChain;
     }
 
     /**
-     * Takes control away to perform bucket saves
+     * 接管控制权以执行水桶自救
      */
     public MLGBucketFallChain getMLGBucketChain() {
         return mlgBucketChain;
@@ -543,7 +543,7 @@ public class AltoClef implements ModInitializer {
     }
 
     /**
-     * Logs to the console and also messages any player using the bot as a butler.
+     * 记录到控制台，并向使用机器人作为管家的任何玩家发送消息
      */
     public void log(String message, MessagePriority priority) {
         Debug.logMessage(message);
@@ -554,7 +554,7 @@ public class AltoClef implements ModInitializer {
     }
 
     /**
-     * Logs a warning to the console and also alerts any player using the bot as a butler.
+     * 记录警告到控制台，并向使用机器人作为管家的任何玩家发出警报
      */
     public void logWarning(String message, MessagePriority priority) {
         Debug.logWarning(message);

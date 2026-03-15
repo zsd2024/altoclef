@@ -17,10 +17,14 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
 
+/**
+ * 收集蜜脾任务
+ * 用于收集蜜蜂巢中的蜜脾，可以选择是否使用营火来避免激怒蜜蜂
+ */
 public class CollectHoneycombTask extends ResourceTask {
-    private final boolean campfire;
-    private final int count;
-    private BlockPos nest;
+    private final boolean campfire; // 是否使用营火来避免激怒蜜蜂
+    private final int count; // 目标蜜脾数量
+    private BlockPos nest; // 蜜蜂巢的位置
 
     public CollectHoneycombTask(int targetCount) {
         super(Items.HONEYCOMB, targetCount);
@@ -45,34 +49,34 @@ public class CollectHoneycombTask extends ResourceTask {
             Optional<BlockPos> getNearestNest = mod.getBlockScanner().getNearestBlock(Blocks.BEE_NEST);
             if (getNearestNest.isPresent()) nest = getNearestNest.get();
         }
-        // If we are STILL null
+        // 如果我们仍然为空
         if (nest == null) {
             if (campfire && !mod.getItemStorage().hasItemInventoryOnly(Items.CAMPFIRE)) {
-                // May as well get a campfire
-                setDebugState("Can't find nest, getting campfire first...");
+                // 不妨先获取一个营火
+                setDebugState("找不到蜂巢，先获取营火...");
                 return new CataloguedResourceTask(new ItemTarget(Items.CAMPFIRE, 1));
             }
-            setDebugState("Alright, we're searching");
+            setDebugState("好吧，我们正在搜索");
             return new SearchChunkForBlockTask(Blocks.BEE_NEST);
         }
         if (campfire && !isCampfireUnderNest(mod, nest)) {
             if (!mod.getItemStorage().hasItemInventoryOnly(Items.CAMPFIRE)) {
-                setDebugState("Getting a campfire");
+                setDebugState("获取一个营火");
                 return new CataloguedResourceTask(new ItemTarget(Items.CAMPFIRE, 1));
             }
-            setDebugState("Placing campfire");
+            setDebugState("放置营火");
             return new PlaceBlockTask(nest.down(2), Blocks.CAMPFIRE);
         }
         if (!mod.getItemStorage().hasItemInventoryOnly(Items.SHEARS)) {
-            setDebugState("Getting shears");
+            setDebugState("获取剪刀");
             return new CataloguedResourceTask(new ItemTarget(Items.SHEARS, 1));
         }
         if (mod.getWorld().getBlockState(nest).get(Properties.HONEY_LEVEL) != 5) {
             if (!nest.isWithinDistance(mod.getPlayer().getPos(), 20)) {
-                setDebugState("Getting close to nest");
+                setDebugState("靠近蜂巢");
                 return new GetCloseToBlockTask(nest);
             }
-            setDebugState("Waiting for nest to get honey...");
+            setDebugState("等待蜂巢积累蜂蜜...");
             return null;
         }
         return new InteractWithBlockTask(Items.SHEARS, nest);
@@ -90,7 +94,7 @@ public class CollectHoneycombTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + count + " Honeycombs " + (campfire ? "Peacefully" : "Recklessly");
+        return "收集 " + count + " 个蜜脾 " + (campfire ? "和平方式" : "冒险方式");
     }
 
     @Override
@@ -98,6 +102,12 @@ public class CollectHoneycombTask extends ResourceTask {
         return false;
     }
 
+    /**
+     * 检查蜂巢下方是否有营火
+     * @param mod AltoClef实例
+     * @param pos 蜂巢位置
+     * @return 如果蜂巢下方有营火则返回true
+     */
     private boolean isCampfireUnderNest(AltoClef mod, BlockPos pos) {
         for (BlockPos underPos : WorldHelper.scanRegion(pos.down(6), pos.down())) {
             if (mod.getWorld().getBlockState(underPos).getBlock() == Blocks.CAMPFIRE)

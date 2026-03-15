@@ -38,6 +38,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * 水桶缓冲任务 - 当玩家掉落时使用水桶进行缓冲（MLG - 灌溉水桶）
+ */
 public class MLGBucketTask extends Task {
 
     private static MLGClutchConfig _config;
@@ -46,14 +49,24 @@ public class MLGBucketTask extends Task {
         ConfigHelper.loadConfig("configs/mlg_clutch_settings.json", MLGClutchConfig::new, MLGClutchConfig.class, newConfig -> _config = newConfig);
     }
 
-    private BlockPos placedPos;
-    private BlockPos movingTorwards;
+    private BlockPos placedPos; // 放置位置
+    private BlockPos movingTorwards; // 移动方向
 
+    /**
+     * 检查指定位置是否为熔岩
+     * @param pos 位置
+     * @return 是否为熔岩
+     */
     private static boolean isLava(BlockPos pos) {
         assert MinecraftClient.getInstance().world != null;
         return MinecraftClient.getInstance().world.getBlockState(pos).getBlock() == Blocks.LAVA;
     }
 
+    /**
+     * 熔岩是否能够保护免受掉落伤害
+     * @param pos 位置
+     * @return 熔岩是否能保护
+     */
     private static boolean lavaWillProtect(BlockPos pos) {
         assert MinecraftClient.getInstance().world != null;
         BlockState state = MinecraftClient.getInstance().world.getBlockState(pos);
@@ -64,13 +77,18 @@ public class MLGBucketTask extends Task {
         return false;
     }
 
+    /**
+     * 检查指定位置是否为水
+     * @param pos 位置
+     * @return 是否为水
+     */
     private static boolean isWater(BlockPos pos) {
         assert MinecraftClient.getInstance().world != null;
         return MinecraftClient.getInstance().world.getBlockState(pos).getBlock() == Blocks.WATER;
     }
 
     /**
-     * Can we reach this block while falling, or will gravity pull us too far?
+     * 在掉落时我们能到达这个方块吗，还是重力会把我们拉得太远？
      */
     private static boolean canTravelToInAir(BlockPos pos) {
         Entity player = MinecraftClient.getInstance().player;
@@ -78,17 +96,22 @@ public class MLGBucketTask extends Task {
         double verticalDist = player.getPos().getY() - pos.getY() - 1;
         double verticalVelocity = -1 * player.getVelocity().y;
         double grav = EntityHelper.ENTITY_GRAVITY;
-        double movementSpeedPerTick = _config.averageHorizontalMovementSpeedPerTick; // Calculated, but also somewhat conservative
-        // 1d projectile motion
+        double movementSpeedPerTick = _config.averageHorizontalMovementSpeedPerTick; // 已计算，但也有些保守
+        // 1维抛物运动
         double ticksToTravelSq = (-verticalVelocity + Math.sqrt(verticalVelocity * verticalVelocity + 2 * grav * verticalDist)) / grav;
         double maxMoveDistanceSq = movementSpeedPerTick * movementSpeedPerTick * ticksToTravelSq * ticksToTravelSq;
-        // We need to get within 1 block, so subtract a "radius" or something idk
+        // 我们需要进入1个方块内，所以减去一个"半径"或类似的东西
         double horizontalDistance = WorldHelper.distanceXZ(player.getPos(), WorldHelper.toVec3d(pos)) - 0.8;
         if (horizontalDistance < 0)
             horizontalDistance = 0;
         return maxMoveDistanceSq > horizontalDistance * horizontalDistance;
     }
 
+    /**
+     * 检查掉落是否致命
+     * @param pos 着陆位置
+     * @return 是否致命
+     */
     private static boolean isFallDeadly(BlockPos pos) {
         PlayerEntity player = MinecraftClient.getInstance().player;
         double damage = calculateFallDamageToLandOn(pos);
@@ -102,18 +125,27 @@ public class MLGBucketTask extends Task {
         return resultingHealth < _config.preferLavaWhenFallDropsHealthBelowThreshold;
     }
 
+    /**
+     * 计算着陆时的掉落伤害
+     * @param pos 着陆位置
+     * @return 掉落伤害
+     */
     private static double calculateFallDamageToLandOn(BlockPos pos) {
         ClientWorld world = MinecraftClient.getInstance().world;
         PlayerEntity player = MinecraftClient.getInstance().player;
         assert player != null;
         double totalFallDistance = player.fallDistance + (player.getY() - pos.getY() - 1);
-        // Copied from living entity I think, somewhere idk you get the picture.
+        // 从生物实体复制，某处，你懂的。
         double baseFallDamage = MathHelper.ceil(totalFallDistance - 3.0F);
-        // Be a bit conservative, assume MORE damage
+        // 稍微保守一点，假设更多伤害
         assert world != null;
         return EntityHelper.calculateResultingPlayerDamage(player, DamageSourceVer.getFallDamageSource(world), baseFallDamage);
     }
 
+    /**
+     * 左右移动
+     * @param delta 移动方向
+     */
     private static void moveLeftRight(int delta) {
         InputControls controls = AltoClef.getInstance().getInputControls();
 
@@ -129,6 +161,10 @@ public class MLGBucketTask extends Task {
         }
     }
 
+    /**
+     * 前后移动
+     * @param delta 移动方向
+     */
     private static void moveForwardBack(int delta) {
         InputControls controls = AltoClef.getInstance().getInputControls();
 
@@ -144,47 +180,59 @@ public class MLGBucketTask extends Task {
         }
     }
 
+    /**
+     * 内部Tick处理
+     * @param mod AltoClef实例
+     * @param oldMovingTorwards 旧的移动方向
+     * @return 任务
+     */
     private Task onTickInternal(AltoClef mod, BlockPos oldMovingTorwards) {
         Optional<BlockPos> willLandOn = getBlockWeWillLandOn(mod);
         Optional<BlockPos> bestClutchPos = getBestConeClutchBlock(mod, oldMovingTorwards);
-        // Move torwards our best "clutch" position
+        // 移动到我们最佳的"抓地"位置
         if (bestClutchPos.isPresent()) {
             movingTorwards = bestClutchPos.get().mutableCopy();
             if (!movingTorwards.equals(oldMovingTorwards)) {
                 if (oldMovingTorwards == null)
-                    Debug.logMessage("(NEW clutch target: " + movingTorwards + ")");
+                    Debug.logMessage("(新抓地目标: " + movingTorwards + ")");
                 else
-                    Debug.logMessage("(changed clutch target: " + movingTorwards + ")");
+                    Debug.logMessage("(改变抓地目标: " + movingTorwards + ")");
             }
         } else if (oldMovingTorwards != null) {
-            Debug.logMessage("(LOST clutch position!)");
+            Debug.logMessage("(失去抓地位置！)");
         }
         if (willLandOn.isPresent()) {
             handleJumpForLand(mod, willLandOn.get());
             return placeMLGBucketTask(mod, willLandOn.get());
         } else {
-            setDebugState("Wait for it...");
-            // We must trigger jump as soon as we enter a "climbable" object
+            setDebugState("等待...");
+            // 我们必须在进入"可攀爬"对象时立即触发跳跃
             mod.getInputControls().release(Input.JUMP);
             return null;
         }
     }
 
+    /**
+     * 放置MLG水桶任务
+     * @param mod AltoClef实例
+     * @param toPlaceOn 放置位置
+     * @return 任务
+     */
     private Task placeMLGBucketTask(AltoClef mod, BlockPos toPlaceOn) {
         if (!hasClutchItem(mod)) {
-            setDebugState("No clutch item");
+            setDebugState("没有抓地物品");
             return null;
         }
-        // If our raycast hit a non-solid block, go DOWN one.
+        // 如果射线检测击中非实体方块，则向下移动一格
         if (!WorldHelper.isSolidBlock(toPlaceOn)) {
             toPlaceOn = toPlaceOn.down();
         }
         BlockPos willLandIn = toPlaceOn.up();
-        // If we're water, we're ok. Do nothing.
+        // 如果是水，我们没事。什么都不做。
         BlockState willLandInState = mod.getWorld().getBlockState(willLandIn);
         if (willLandInState.getBlock() == Blocks.WATER) {
-            // We good.
-            setDebugState("Waiting to fall into water");
+            // 我们没事。
+            setDebugState("等待掉入水中");
             mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, false);
             return null;
         }
@@ -192,12 +240,12 @@ public class MLGBucketTask extends Task {
         IPlayerContext ctx = mod.getClientBaritone().getPlayerContext();
         Optional<Rotation> reachable = RotationUtils.reachableCenter(ctx.player(), toPlaceOn, ctx.playerController().getBlockReachDistance(), false);
         if (reachable.isPresent()) {
-            setDebugState("Performing MLG");
+            setDebugState("执行MLG");
             LookHelper.lookAt(reachable.get());
-            // Try water by default
+            // 默认尝试水
             boolean hasClutch = (!mod.getWorld().getDimension().ultrawarm() && mod.getSlotHandler().forceEquipItem(Items.WATER_BUCKET));
             if (!hasClutch) {
-                // Go through our "clutch" items and see if any fit
+                // 检查我们的"抓地"物品，看是否有合适的
                 if (!_config.clutchItems.isEmpty()) {
                     for (Item tryEquip : _config.clutchItems) {
                         if (mod.getSlotHandler().forceEquipItem(tryEquip)) {
@@ -207,18 +255,18 @@ public class MLGBucketTask extends Task {
                     }
                 }
             }
-            // Try to capture tall grass as well...
+            // 也尝试捕捉高草...
             BlockPos[] toCheckLook = new BlockPos[]{toPlaceOn, toPlaceOn.up(), toPlaceOn.up(2)};
             if (hasClutch && Arrays.stream(toCheckLook).anyMatch(check -> mod.getClientBaritone().getPlayerContext().isLookingAt(check))) {
-                Debug.logMessage("HIT: " + willLandIn);
+                Debug.logMessage("命中: " + willLandIn);
                 placedPos = willLandIn;
                 mod.getInputControls().tryPress(Input.CLICK_RIGHT);
                 //mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, true);
             } else {
-                setDebugState("NOT LOOKING CORRECTLY!");
+                setDebugState("没有正确看向！");
             }
         } else {
-            setDebugState("Waiting to reach target block...");
+            setDebugState("等待到达目标方块...");
         }
         return null;
     }
@@ -227,10 +275,10 @@ public class MLGBucketTask extends Task {
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // ALWAYS faster
+        // 始终冲刺
         mod.getInputControls().hold(Input.SPRINT);
-        // Check AROUND player instead of directly under.
-        // We may crop the edge of a block or wall.
+        // 检查玩家周围而不是正下方。
+        // 我们可能裁剪方块或墙的边缘。
         BlockPos oldMovingTorwards = movingTorwards != null ? movingTorwards.mutableCopy() : null;
         movingTorwards = null;
         Task result = onTickInternal(mod, oldMovingTorwards);
@@ -241,6 +289,11 @@ public class MLGBucketTask extends Task {
         return result;
     }
 
+    /**
+     * 处理前进速度
+     * @param mod AltoClef实例
+     * @param newForwardTarget 是否为新的前进目标
+     */
     private void handleForwardVelocity(AltoClef mod, boolean newForwardTarget) {
         if (mod.getPlayer().isOnGround() || movingTorwards == null || WorldHelper.inRangeXZ(mod.getPlayer(), movingTorwards, 0.05f)) {
             moveForwardBack(0);
@@ -264,21 +317,21 @@ public class MLGBucketTask extends Task {
     protected void onStart() {
         AltoClef.getInstance().getClientBaritone().getPathingBehavior().forceCancel();
         placedPos = null;
-        // hold shift while falling.
-        // Look down at first, might help
+        // 掉落时按住shift。
+        // 先向下看，可能有帮助
         AltoClef.getInstance().getPlayer().setPitch(90);
     }
 
     /**
-     * We will land in this block, handle our jump.
+     * 我们将降落在这个方块上，处理我们的跳跃。
      * <p>
-     * Twisted vines require we press space ONLY when we're inside the vines
+     * 扭曲藤蔓要求我们只在藤蔓内部时按空格键
      */
     private void handleJumpForLand(AltoClef mod, BlockPos willLandOn) {
         BlockPos willLandIn = WorldHelper.isSolidBlock(willLandOn) ? willLandOn.up() : willLandOn;
         BlockState s = mod.getWorld().getBlockState(willLandIn);
         if (s.getBlock() == Blocks.LAVA) {
-            // ALWAYS hold jump for lava
+            // 始终为熔岩按住跳跃
             mod.getInputControls().hold(Input.JUMP);
             return;
         }
@@ -295,9 +348,14 @@ public class MLGBucketTask extends Task {
             mod.getInputControls().release(Input.JUMP);
     }
 
+    /**
+     * 获取我们将降落在哪个方块上
+     * @param mod AltoClef实例
+     * @return 将降落的方块位置（如果存在）
+     */
     private Optional<BlockPos> getBlockWeWillLandOn(AltoClef mod) {
         Vec3d velCheck = mod.getPlayer().getVelocity();
-        // Flatten and slightly exaggerate the velocity
+        // 展平并略微夸大速度
         velCheck.multiply(10, 0, 10);
         Box b = mod.getPlayer().getBoundingBox().offset(velCheck);
         Vec3d c = b.getCenter();
@@ -329,29 +387,29 @@ public class MLGBucketTask extends Task {
     }
 
     /**
-     * While falling to a target, we look towards the center and press forwards.
-     * However, if we change our direction we end up moving sideways with respect to our look direction, which
-     * often messes us up.
+     * 降落到目标时，我们朝中心看并向前移动。
+     * 但是，如果我们改变方向，我们会相对于视角方向侧向移动，
+     * 这通常会搞砸我们。
      * <p>
-     * This will nudge the bot left/right so we're no longer "slipping" to the side.
+     * 这将使机器人向左/右移动，这样我们就不再"滑向"侧面。
      */
     private void handleCancellingSidewaysVelocity(AltoClef mod) {
         if (movingTorwards == null) {
             moveLeftRight(0);
             return;
         }
-        // Cancel our left/right velocity with respect to block
+        // 取消相对于方块的左/右速度
         Vec3d velocity = mod.getPlayer().getVelocity();
         Vec3d deltaTarget = WorldHelper.toVec3d(movingTorwards).subtract(mod.getPlayer().getPos());
-        // "right" velocity relative to delta
+        // 相对于delta的"右"速度
         Rotation look = LookHelper.getLookRotation();
         Vec3d forwardFacing = LookHelper.toVec3d(look).multiply(1, 0, 1).normalize();
-        Vec3d rightVelocity = MathsHelper.projectOntoPlane(velocity, forwardFacing).multiply(1, 0, 1); // Flatten
-        // Also consider how much further to the right we should move
+        Vec3d rightVelocity = MathsHelper.projectOntoPlane(velocity, forwardFacing).multiply(1, 0, 1); // 展平
+        // 还要考虑我们应向右移动多少距离
         Vec3d rightDelta = MathsHelper.projectOntoPlane(deltaTarget, forwardFacing).multiply(1, 0, 1);
-        // Do a little PD loop
+        // 执行一个小的PD循环
         Vec3d pd = rightDelta.subtract(rightVelocity.multiply(2));
-        // We're traveling too fast sideways
+        // 我们横向移动得太快了
         Vec3d faceRight = forwardFacing.crossProduct(new Vec3d(0, 1, 0));
         boolean moveRight = pd.dotProduct(faceRight) > 0;
         if (moveRight) {
@@ -361,33 +419,39 @@ public class MLGBucketTask extends Task {
         }
     }
 
+    /**
+     * 获取最佳圆锥抓地方块
+     * @param mod AltoClef实例
+     * @param oldClutchTarget 旧抓地方块
+     * @return 最佳抓地方块位置（如果存在）
+     */
     private Optional<BlockPos> getBestConeClutchBlock(AltoClef mod, BlockPos oldClutchTarget) {
         double pitchHalfWidth = _config.epicClutchConePitchAngle;
         double dpitchStart = pitchHalfWidth / _config.epicClutchConePitchResolution;
 
-        // Our priority is:
-        // - Safe to land (water)
-        // - Highest block
-        // IF WE HAVE MLG
-        // - Closer to player
+        // 我们的优先级是：
+        // - 安全降落（水）
+        // - 最高方块
+        // 如果我们有MLG
+        // - 接近玩家
 
         ConeClutchContext cctx = new ConeClutchContext(mod);
 
-        // Always check our previous best so we don't lose it
+        // 始终检查我们之前的最佳位置，以免失去它
         if (oldClutchTarget != null)
             cctx.checkBlock(mod, oldClutchTarget);
 
-        // Perform cone
+        // 执行圆锥扫描
         for (double pitch = dpitchStart; pitch <= pitchHalfWidth; pitch += pitchHalfWidth / _config.epicClutchConePitchResolution) {
             double pitchProgress = (pitch - dpitchStart) / (pitchHalfWidth - dpitchStart);
-            double yawResolution = _config.epicClutchConeYawDivisionStart + pitchProgress * (_config.epicClutchConeYawDivisionEnd - _config.epicClutchConeYawDivisionStart); // lerp from start to end
+            double yawResolution = _config.epicClutchConeYawDivisionStart + pitchProgress * (_config.epicClutchConeYawDivisionEnd - _config.epicClutchConeYawDivisionStart); // 从开始到结束插值
             for (double yaw = 0; yaw < 360; yaw += 360.0 / yawResolution) {
                 RaycastContext rctx = castCone(yaw, pitch);
                 cctx.checkRay(mod, rctx);
             }
         }
 
-        // Perform NEARBY sweep
+        // 执行附近扫描
         //int nearbySweepSize =
         Vec3d center = mod.getPlayer().getPos();
         for (int dx = -2; dx <= 2; ++dx) {
@@ -400,18 +464,29 @@ public class MLGBucketTask extends Task {
         return Optional.ofNullable(cctx.bestBlock);
     }
 
+    /**
+     * 向下投射
+     * @param origin 起始点
+     * @return 射线投射上下文
+     */
     private RaycastContext castDown(Vec3d origin) {
         Entity player = MinecraftClient.getInstance().player;
         assert player != null;
         return new RaycastContext(origin, origin.add(0, -1 * _config.castDownDistance, 0), RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.ANY, player);
     }
 
+    /**
+     * 圆锥投射
+     * @param yaw 偏航角
+     * @param pitch 俯仰角
+     * @return 射线投射上下文
+     */
     private RaycastContext castCone(double yaw, double pitch) {
         Entity player = MinecraftClient.getInstance().player;
         assert player != null;
         Vec3d origin = player.getPos();
         double dy = _config.epicClutchConeCastHeight;
-        double dH = dy * Math.sin(Math.toRadians(pitch)); // horizontal distance
+        double dH = dy * Math.sin(Math.toRadians(pitch)); // 水平距离
         double yawRad = Math.toRadians(yaw);
         double dx = dH * Math.cos(yawRad);
         double dz = dH * Math.sin(yawRad);
@@ -433,6 +508,11 @@ public class MLGBucketTask extends Task {
         controls.release(Input.JUMP);
     }
 
+    /**
+     * 检查是否有抓地物品
+     * @param mod AltoClef实例
+     * @return 是否有抓地物品
+     */
     private boolean hasClutchItem(AltoClef mod) {
         if (!mod.getWorld().getDimension().ultrawarm() && mod.getItemStorage().hasItem(Items.WATER_BUCKET)) {
             return true;
@@ -444,6 +524,7 @@ public class MLGBucketTask extends Task {
     public boolean isFinished() {
         ClientPlayerEntity player = AltoClef.getInstance().getPlayer();
 
+        // 当玩家在游泳、接触水、在地面或攀爬时完成
         return player.isSwimming() || player.isTouchingWater() || player.isOnGround() || player.isClimbing();
     }
 
@@ -451,6 +532,121 @@ public class MLGBucketTask extends Task {
     protected boolean isEqual(Task other) {
         return other instanceof MLGBucketTask;
     }
+
+    @Override
+    protected String toDebugString() {
+        String result = "史诗级游戏时刻";
+        if (movingTorwards != null) {
+            result += " (抓地在: " + movingTorwards + ")";
+        }
+        return result;
+    }
+
+    /**
+     * 获取水放置位置
+     * @return 水放置位置
+     */
+    public BlockPos getWaterPlacedPos() {
+        return placedPos;
+    }
+
+    /**
+     * MLG抓地配置类
+     */
+    private static class MLGClutchConfig {
+        public double castDownDistance = 40; // 向下投射距离
+        public double averageHorizontalMovementSpeedPerTick = 0.25; // 每tick玩家水平移动的距离。设置得太低，机器人会忽略可行的抓地。设置得太高，机器人会尝试抓地但无法到达。
+        public double epicClutchConeCastHeight = 40; // "史诗级抓地"射线圆锥的高度
+        public double epicClutchConePitchAngle = 25; // "史诗级抓地"射线圆锥的宽度（度）
+        public int epicClutchConePitchResolution = 8; // 圆锥的俯仰角度的分割数量
+        public int epicClutchConeYawDivisionStart = 6; // 圆锥抓地在中心开始的分割数量
+        public int epicClutchConeYawDivisionEnd = 20; // 圆锥抓地在末尾的分割数量
+        public int preferLavaWhenFallDropsHealthBelowThreshold = 3; // 如果掉落导致玩家血量低于此值，则认为是致命的。
+        public int lavaLevelOrGreaterWillCancelFallDamage = 5; // 此等级的熔岩会在我们按空格键时取消掉落伤害。
+        @JsonSerialize(using = ItemSerializer.class)
+        @JsonDeserialize(using = ItemDeserializer.class)
+        public List<Item> clutchItems = List.of(Items.HAY_BLOCK, Items.TWISTING_VINES); // 抓地物品列表
+    }
+
+    /**
+     * 圆锥抓地上下文
+     */
+    class ConeClutchContext {
+        private final boolean hasClutchItem;
+        public BlockPos bestBlock = null; // 最佳方块
+        private double highestY = Double.NEGATIVE_INFINITY; // 最高Y坐标
+        private double closestXZ = Double.POSITIVE_INFINITY; // 最近XZ距离
+        private boolean bestBlockIsSafe = false; // 最佳方块是否安全
+        private boolean bestBlockIsDeadlyFall = false; // 最佳方块是否致命掉落
+        private boolean bestBlockIsLava = false; // 最佳方块是否为熔岩
+
+        public ConeClutchContext(AltoClef mod) {
+            hasClutchItem = hasClutchItem(mod);
+        }
+
+        /**
+         * 检查方块
+         * @param mod AltoClef实例
+         * @param check 待检查方块
+         */
+        public void checkBlock(AltoClef mod, BlockPos check) {
+            // 已检查过
+            if (Objects.equals(bestBlock, check))
+                return;
+            if (WorldHelper.isAir(check)) {
+                Debug.logMessage("(MLG空气方块检查降落，方块破碎了。我们将尝试另一个): " + check);
+                return;
+            }
+            boolean lava = isLava(check);
+            boolean lavaWillProtect = lava && lavaWillProtect(check);
+            boolean water = isWater(check);
+            boolean isDeadlyFall = !hasClutchItem && isFallDeadly(check);
+            // 始终优先考虑安全方块
+            if (bestBlockIsSafe && !water)
+                return;
+            double height = check.getY();
+            double distSqXZ = WorldHelper.distanceXZSquared(WorldHelper.toVec3d(check), mod.getPlayer().getPos());
+            boolean highestSoFar = height > highestY;
+            boolean closestSoFar = distSqXZ < closestXZ;
+            // 我们找到了一个新的候选者
+            if (
+                    bestBlock == null || // 没有找到目标。
+                            (water && !bestBlockIsSafe) || // 如果可能我们总是降落在水中
+                            (lava && lavaWillProtect && bestBlockIsDeadlyFall && !hasClutchItem) || // 如果我们最好的选择是因掉落伤害而死亡，则降落在熔岩中
+                            (!lava && !isDeadlyFall && ((closestSoFar && hasClutchItem) && highestSoFar || bestBlockIsLava)) // 如果不是熔岩且不致命，如果它比之前更高或我们最好的选择是熔岩，则降落在上面
+            ) {
+                if (canTravelToInAir((lava || water) ? check.down() : check)) {
+                    if (highestSoFar) {
+                        highestY = height;
+                    }
+                    if (closestSoFar) {
+                        closestXZ = distSqXZ;
+                    }
+                    bestBlockIsSafe = water;
+                    bestBlockIsDeadlyFall = isDeadlyFall;
+                    bestBlockIsLava = lava;
+                    bestBlock = check;
+                }
+            }
+        }
+
+        /**
+         * 检查射线
+         * @param mod AltoClef实例
+         * @param rctx 射线上下文
+         */
+        public void checkRay(AltoClef mod, RaycastContext rctx) {
+            BlockHitResult hit = mod.getWorld().raycast(rctx);
+            if (hit.getType() == HitResult.Type.BLOCK) {
+                BlockPos check = hit.getBlockPos();
+                // 目前，要求我们降落在这个方块上
+                if (hit.getSide().getOffsetY() <= 0)
+                    return;
+                checkBlock(mod, check);
+            }
+        }
+    }
+}
 
     @Override
     protected String toDebugString() {

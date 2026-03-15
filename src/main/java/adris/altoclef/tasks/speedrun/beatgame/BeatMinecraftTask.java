@@ -59,18 +59,26 @@ import static adris.altoclef.tasks.resources.CollectMeatTask.COOKABLE_FOODS;
 import static net.minecraft.client.MinecraftClient.getInstance;
 
 
+/**
+ * 完成Minecraft游戏任务类
+ * 这个任务处理完整完成Minecraft游戏的过程，包括获取末影珍珠、进入末地、击败末影龙等
+ */
 public class BeatMinecraftTask extends Task {
 
+    // 收集末影之眼所需装备（钻石胸甲、腿甲、靴子）
     private static final Item[] COLLECT_EYE_ARMOR = new Item[]{
             Items.DIAMOND_CHESTPLATE,
             Items.DIAMOND_LEGGINGS,
             Items.DIAMOND_BOOTS
     };
 
+    // 收集铁质装备
     private static final Item[] COLLECT_IRON_ARMOR = ItemHelper.IRON_ARMORS;
+    // 在末地收集钻石装备
     private static final Item[] COLLECT_EYE_ARMOR_END = ItemHelper.DIAMOND_ARMORS;
 
 
+    // 最小末影之眼装备需求（钻石剑、钻石镐）
     private static final ItemTarget[] COLLECT_EYE_GEAR_MIN = combine(
             ItemTarget.of(Items.DIAMOND_SWORD),
             ItemTarget.of(Items.DIAMOND_PICKAXE)
@@ -79,7 +87,7 @@ public class BeatMinecraftTask extends Task {
     private static final int END_PORTAL_FRAME_COUNT = 12;
     private static final double END_PORTAL_BED_SPAWN_RANGE = 8;
 
-    // We don't want curse of binding
+    // 不需要绑定诅咒
     private static final Predicate<ItemStack> noCurseOfBinding = stack -> !EnchantmentHelper.hasAnyEnchantmentsWith(stack, net.minecraft.component.EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE);
 
     private static BeatMinecraftConfig config;
@@ -92,60 +100,104 @@ public class BeatMinecraftTask extends Task {
 
     private final UselessItems uselessItems;
     private final HashMap<Item, Integer> cachedEndItemDrops = new HashMap<>();
-    // For some reason, after death there's a frame where the game thinks there are NO items in the end.
+    // 出于某种原因，死亡后有一帧游戏认为末地中没有物品。
     private final TimerGame cachedEndItemNothingWaitTime = new TimerGame(10);
     private final Task buildMaterialsTask;
     private final PlaceBedAndSetSpawnTask setBedSpawnTask = new PlaceBedAndSetSpawnTask();
     private final Task getOneBedTask = TaskCatalogue.getItemTask("bed", 1);
     private final Task sleepThroughNightTask = new SleepThroughNightTask();
     private final Task killDragonBedStratsTask = new KillEnderDragonWithBedsTask();
-    // End specific dragon breath avoidance
+    // 末地特定的龙息躲避
     private final DragonBreathTracker dragonBreathTracker = new DragonBreathTracker();
+    // 用于控制各种任务执行的计时器
     private final TimerGame timer1 = new TimerGame(5);
     private final TimerGame timer2 = new TimerGame(35);
     private final TimerGame timer3 = new TimerGame(60);
+    // 资源收集任务列表
     private final List<PriorityTask> gatherResources = new LinkedList<>();
+    // 任务变更计时器
     private final TimerGame changedTaskTimer = new TimerGame(3);
+    // 强制任务计时器
     private final TimerGame forcedTaskTimer = new TimerGame(10);
+    // 黑名单箱子列表
     private final List<BlockPos> blacklistedChests = new LinkedList<>();
+    // 水放置计时器
     private final TimerGame waterPlacedTimer = new TimerGame(1.5);
+    // 要塞计时器
     private final TimerGame fortressTimer = new TimerGame(20);
+    // AltoClef实例
     private final AltoClef mod;
+    // 上一次资源收集任务
     private PriorityTask lastGather = null;
+    // 上一次执行的任务
     private Task lastTask = null;
+    // 是否拾取熔炉
     private boolean pickupFurnace = false;
+    // 是否拾取烟熏炉
     private boolean pickupSmoker = false;
+    // 是否拾取工作台
     private boolean pickupCrafting = false;
+    // 重新拾取任务
     private Task rePickupTask = null;
+    // 搜索任务
     private Task searchTask = null;
+    // 是否已获得烈焰棒
     private boolean hasRods = false;
+    // 是否已到达生物群系
     private boolean gotToBiome = false;
+    // 移除多余水桶任务
     private GetRidOfExtraWaterBucketTask getRidOfExtraWaterBucketTask = null;
+    // 重复计数
     private int repeated = 0;
+    // 是否正在获取末影珍珠
     private boolean gettingPearls = false;
+    // 安全下界传送门任务
     private SafeNetherPortalTask safeNetherPortalTask;
+    // 是否已逃离传送门区域
     private boolean escaped = false;
+    // 是否已到达要塞
     private boolean gotToFortress = false;
+    // 缓存的要塞任务
     private GetWithinRangeOfBlockTask cachedFortressTask = null;
+    // 重置要塞任务标志
     private boolean resetFortressTask = false;
+    // 前一个位置
     private BlockPos prevPos = null;
-    private Task goToNetherTask = new DefaultGoToDimensionTask(Dimension.NETHER); // To keep the portal build cache.
+    // 前往下界任务 - 用于保持传送门构建缓存
+    private Task goToNetherTask = new DefaultGoToDimensionTask(Dimension.NETHER);
+    // 龙是否已死亡
     private boolean dragonIsDead = false;
+    // 末地传送门中心位置
     private BlockPos endPortalCenterLocation;
+    // 是否已运行要塞定位器
     private boolean ranStrongholdLocator;
+    // 末地传送门是否已开启
     private boolean endPortalOpened;
+    // 床重生点位置
     private BlockPos bedSpawnLocation;
+    // 缓存的已填充传送门框架数量
     private int cachedFilledPortalFrames = 0;
-    // Controls whether we CAN walk on the end portal.
+    // 控制是否可以在末地传送门上行走
     private boolean enterindEndPortal = false;
+    // 战利品任务
     private Task lootTask;
+    // 是否正在收集末影之眼
     private boolean collectingEyes;
+    // 是否正在躲避龙息
     private boolean escapingDragonsBreath = false;
+    // 获取床的任务
     private Task getBedTask;
+    // 任务变更列表
     private List<TaskChange> taskChanges = new ArrayList<>();
+    // 之前的上一个收集任务
     private PriorityTask prevLastGather = null;
+    // 生物群系位置
     private BlockPos biomePos = null;
 
+    /**
+     * 构造函数
+     * 初始化BeatMinecraftTask实例并设置各种配置参数
+     */
     public BeatMinecraftTask(AltoClef mod) {
         this.mod = mod;
 
@@ -156,12 +208,87 @@ public class BeatMinecraftTask extends Task {
         SetGammaCommand.changeGamma(20d);
 
         if (mod.getWorld().getDifficulty() != Difficulty.EASY) {
-            mod.logWarning("Detected that the difficulty is other than easy!");
+            mod.logWarning("检测到游戏难度不是简单模式！");
             if (mod.getWorld().getDifficulty() == Difficulty.PEACEFUL) {
-                mod.logWarning("No mobs spawn on peaceful difficulty, so the bot will not be able to beat the game. Please change it!");
+                mod.logWarning("和平难度下不会生成怪物，机器人将无法完成游戏。请更改难度！");
             } else {
-                mod.logWarning("This could cause the bot to die sooner, please consider changing it...");
+                mod.logWarning("这可能导致机器人更快死亡，请考虑更改难度...");
             }
+        }
+
+        ItemStorageTracker itemStorage = mod.getItemStorage();
+
+        // 添加木材开采任务
+        gatherResources.add(new MineBlockPriorityTask(
+                ItemHelper.itemsToBlocks(ItemHelper.LOG), ItemHelper.LOG, MiningRequirement.STONE,
+                new DistanceItemPriorityCalculator(1050, 450, 5, 4, 10),
+
+                a -> itemStorage.hasItem(Items.STONE_AXE, Items.IRON_AXE, Items.GOLDEN_AXE, Items.DIAMOND_AXE)
+                        && itemStorage.getItemCount(ItemHelper.LOG) < 5
+        ));
+
+        addOreMiningTasks();
+        addCollectFoodTask(mod);
+        addStoneToolsTasks();
+        addPickaxeTasks(mod);
+        addDiamondArmorTasks(mod);
+        addLootChestsTasks(mod);
+        addPickupImportantItemsTask(mod);
+
+        // 添加沙砾开采任务
+        gatherResources.add(new MineBlockPriorityTask(new Block[]{Blocks.GRAVEL}, new Item[]{Items.FLINT}, MiningRequirement.STONE,
+                new DistanceItemPriorityCalculator(17500, 7500, 5, 1, 1),
+                a -> itemStorage.hasItem(Items.STONE_SHOVEL) && !itemStorage.hasItem(Items.FLINT_AND_STEEL)
+        ));
+
+        // 添加床的开采任务
+        gatherResources.add(new MineBlockPriorityTask(ItemHelper.itemsToBlocks(ItemHelper.BED), ItemHelper.BED, MiningRequirement.HAND,
+                new DistanceItemPriorityCalculator(25_000, 25_000, 5, getTargetBeds(mod), getTargetBeds(mod))
+        ));
+
+        // 添加盾牌合成任务
+        gatherResources.add(new CraftItemPriorityTask(200, getRecipeTarget(Items.SHIELD),
+                a -> itemStorage.hasItem(Items.IRON_INGOT)
+        ));
+
+        // 添加铁桶合成任务
+        gatherResources.add(new CraftItemPriorityTask(300, mod.getCraftingRecipeTracker().getFirstRecipeTarget(Items.BUCKET, 2),
+                a -> itemStorage.getItemCount(Items.IRON_INGOT) >= 6)
+        );
+
+        // 添加打火石合成任务
+        gatherResources.add(new CraftItemPriorityTask(100, getRecipeTarget(Items.FLINT_AND_STEEL),
+                a -> itemStorage.hasItem(Items.IRON_INGOT) && itemStorage.hasItem(Items.FLINT)
+        ));
+
+        // 添加钻石剑合成任务
+        gatherResources.add(new CraftItemPriorityTask(330, getRecipeTarget(Items.DIAMOND_SWORD), a -> itemStorage.getItemCount(Items.DIAMOND) >= 2 && StorageHelper.miningRequirementMet(MiningRequirement.DIAMOND)));
+        // 添加金头盔合成任务
+        gatherResources.add(new CraftItemPriorityTask(400, getRecipeTarget(Items.GOLDEN_HELMET), a -> itemStorage.getItemCount(Items.GOLD_INGOT) >= 5));
+
+        addSleepTask(mod);
+
+        // 添加水桶获取任务
+        gatherResources.add(new ActionPriorityTask(a -> {
+            Pair<Task, Double> pair = new Pair<>(TaskCatalogue.getItemTask(Items.WATER_BUCKET, 1), Double.NEGATIVE_INFINITY);
+
+            if (itemStorage.hasItem(Items.WATER_BUCKET) || hasItem(mod, Items.WATER_BUCKET))
+                return pair;
+
+            Optional<BlockPos> optionalPos = mod.getBlockScanner().getNearestBlock(Blocks.WATER);
+            if (optionalPos.isEmpty()) return pair;
+
+            double distance = Math.sqrt(BlockPosVer.getSquaredDistance(optionalPos.get(),mod.getPlayer().getPos()));
+            if (distance > 55) return pair;
+
+            pair.setRight(10 / distance * 77.3);
+
+            return pair;
+        }, a -> itemStorage.hasItem(Items.BUCKET), false, true, true));
+
+        addSmeltTasks(mod);
+        addCookFoodTasks(mod);
+    }
         }
 
         ItemStorageTracker itemStorage = mod.getItemStorage();
@@ -726,19 +853,23 @@ public class BeatMinecraftTask extends Task {
      *
      * @return True if the task is finished, false otherwise.
      */
+    /**
+     * 检查任务是否已完成
+     * 当游戏结束画面显示或龙已死亡时任务完成
+     */
     @Override
     public boolean isFinished() {
         if (getInstance().currentScreen instanceof CreditsScreen) {
-            Debug.logInternal("isFinished - Current screen is CreditsScreen");
+            Debug.logInternal("isFinished - 当前屏幕是游戏结束画面");
             return true;
         }
 
         if (WorldHelper.getCurrentDimension() == Dimension.OVERWORLD && dragonIsDead) {
-            Debug.logInternal("isFinished - Dragon is dead in the Overworld");
+            Debug.logInternal("isFinished - 龙已在主世界死亡");
             return true;
         }
 
-        Debug.logInternal("isFinished - Returning false");
+        Debug.logInternal("isFinished - 返回false");
         return false;
     }
 
@@ -907,7 +1038,7 @@ public class BeatMinecraftTask extends Task {
      */
     @Override
     protected String toDebugString() {
-        return "Beating the game (Miran version).";
+        return "完成游戏（Miran版本）。";
     }
 
     /**
@@ -1037,6 +1168,10 @@ public class BeatMinecraftTask extends Task {
     /**
      * This method is called when the mod starts.
      * It performs several tasks to set up the mod.
+     */
+    /**
+     * 任务开始时的初始化操作
+     * 设置行为、保护物品、避免破坏等
      */
     @Override
     protected void onStart() {
@@ -1180,10 +1315,15 @@ public class BeatMinecraftTask extends Task {
         }
     }
 
+    /**
+     * 任务执行的主要逻辑
+     * 管理整个游戏流程，包括获取末影之眼、前往要塞、进入下界、击败末影龙等
+     */
     @Override
     protected Task onTick() {
         ItemStorageTracker itemStorage = mod.getItemStorage();
 
+        // 调整方块放置惩罚值
         double blockPlacementPenalty = 10;
         if (StorageHelper.getNumberOfThrowawayBlocks(mod) > 128) {
             blockPlacementPenalty = 5;
@@ -1443,19 +1583,19 @@ public class BeatMinecraftTask extends Task {
         // By default, don't walk over end portals.
         enterindEndPortal = false;
 
-        // End stuff.
+        // 末地逻辑处理
         if (WorldHelper.getCurrentDimension() == Dimension.END) {
             if (!mod.getWorld().isChunkLoaded(0, 0)) {
-                setDebugState("Waiting for chunks to load");
+                setDebugState("等待区块加载");
                 return null;
             }
 
-            // If we have bed, do bed strats, otherwise punk normally.
+            // 如果有床，则使用床策略，否则使用常规策略
             updateCachedEndItems(mod);
-            // Grab beds
+            // 获取床
             if (mod.getEntityTracker().itemDropped(ItemHelper.BED) && (needsBeds(mod) || WorldHelper.getCurrentDimension() == Dimension.END))
                 return new PickupDroppedItemTask(new ItemTarget(ItemHelper.BED), true);
-            // Grab tools
+            // 获取工具
             if (!itemStorage.hasItem(Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE)) {
                 if (mod.getEntityTracker().itemDropped(Items.IRON_PICKAXE))
                     return new PickupDroppedItemTask(Items.IRON_PICKAXE, 1);
@@ -1464,11 +1604,11 @@ public class BeatMinecraftTask extends Task {
             }
             if (!itemStorage.hasItem(Items.WATER_BUCKET) && mod.getEntityTracker().itemDropped(Items.WATER_BUCKET))
                 return new PickupDroppedItemTask(Items.WATER_BUCKET, 1);
-            // Grab armor
+            // 获取装备
             for (Item armorCheck : COLLECT_EYE_ARMOR_END) {
                 if (!StorageHelper.isArmorEquipped(armorCheck)) {
                     if (itemStorage.hasItem(armorCheck)) {
-                        setDebugState("Equipping armor.");
+                        setDebugState("装备护甲。");
                         return new EquipArmorTask(armorCheck);
                     }
                     if (mod.getEntityTracker().itemDropped(armorCheck)) {
@@ -1476,18 +1616,18 @@ public class BeatMinecraftTask extends Task {
                     }
                 }
             }
-            // Dragons breath avoidance
+            // 龙息躲避
             dragonBreathTracker.updateBreath(mod);
             for (BlockPos playerIn : WorldHelper.getBlocksTouchingPlayer()) {
                 if (dragonBreathTracker.isTouchingDragonBreath(playerIn)) {
-                    setDebugState("ESCAPE dragons breath");
+                    setDebugState("躲避龙息");
                     escapingDragonsBreath = true;
                     return dragonBreathTracker.getRunAwayTask();
                 }
             }
             escapingDragonsBreath = false;
 
-            // If we find an ender portal, just GO to it!!!
+            // 如果找到末地传送门，直接前往！
             if (mod.getBlockScanner().anyFound(Blocks.END_PORTAL)) {
                 setDebugState("WOOHOO");
                 dragonIsDead = true;
@@ -1498,13 +1638,13 @@ public class BeatMinecraftTask extends Task {
                 return new DoToClosestBlockTask(blockPos -> new GetToBlockTask(blockPos.up()), (pos) -> Math.abs(pos.getX()) + Math.abs(pos.getZ()) <= 1, Blocks.END_PORTAL);
             }
             if (itemStorage.hasItem(ItemHelper.BED) || mod.getBlockScanner().anyFound(ItemHelper.itemsToBlocks(ItemHelper.BED))) {
-                setDebugState("Bed strats");
+                setDebugState("床策略");
                 return killDragonBedStratsTask;
             }
-            setDebugState("No beds, regular strats.");
+            setDebugState("没有床，常规策略。");
             return new KillEnderDragonTask();
         } else {
-            // We're not in the end so reset our "end cache" timer
+            // 我们不在末地，所以重置"末地缓存"计时器
             cachedEndItemNothingWaitTime.reset();
         }
 
@@ -1598,7 +1738,7 @@ public class BeatMinecraftTask extends Task {
             return TaskCatalogue.getItemTask(Items.WOODEN_PICKAXE, 1);
         }
 
-        // We have eyes. Locate our portal + enter.
+        // 我们有了末影之眼。定位传送门并进入。
         if (WorldHelper.getCurrentDimension() == Dimension.OVERWORLD) {
             if (itemStorage.hasItem(Items.DIAMOND_PICKAXE)) {
                 Item[] throwGearItems = {Items.STONE_SWORD, Items.STONE_PICKAXE, Items.IRON_SWORD, Items.IRON_PICKAXE};
@@ -1632,9 +1772,9 @@ public class BeatMinecraftTask extends Task {
                 }
             }
             ranStrongholdLocator = true;
-            // Get beds before starting our portal location.
+            // 在开始定位传送门前先获取床。
             if (WorldHelper.getCurrentDimension() == Dimension.OVERWORLD && needsBeds(mod)) {
-                setDebugState("Getting beds before stronghold search.");
+                setDebugState("在要塞搜索之前获取床。");
                 if (!mod.getClientBaritone().getExploreProcess().isActive() && timer1.elapsed()) {
                     timer1.reset();
                 }
@@ -1644,48 +1784,48 @@ public class BeatMinecraftTask extends Task {
                 getBedTask = null;
             }
             if (!itemStorage.hasItem(Items.WATER_BUCKET)) {
-                setDebugState("Getting water bucket.");
+                setDebugState("获取水桶。");
                 return TaskCatalogue.getItemTask(Items.WATER_BUCKET, 1);
             }
             if (!itemStorage.hasItem(Items.FLINT_AND_STEEL)) {
-                setDebugState("Getting flint and steel.");
+                setDebugState("获取打火石。");
                 return TaskCatalogue.getItemTask(Items.FLINT_AND_STEEL, 1);
             }
             if (needsBuildingMaterials(mod)) {
-                setDebugState("Collecting building materials.");
+                setDebugState("收集建筑材料。");
                 return buildMaterialsTask;
             }
 
             if (!endPortalFound(mod, endPortalCenterLocation)) {
-                // Portal Location
-                setDebugState("Locating End Portal...");
+                // 传送门定位
+                setDebugState("定位末地传送门...");
                 return locateStrongholdTask;
             }
 
-            // WE FOUND END PORTAL AND SHOULD HAVE ALL THE NECESSARY STUFF
-            // Destroy silverfish spawner
+            // 我们找到了末地传送门并应该拥有所有必需的物品
+            // 破坏蠹虫刷怪笼
             if (StorageHelper.miningRequirementMetInventory(MiningRequirement.WOOD)) {
                 Optional<BlockPos> silverfish = mod.getBlockScanner().getNearestBlock(blockPos -> (WorldHelper.getSpawnerEntity(blockPos) instanceof SilverfishEntity)
                         , Blocks.SPAWNER);
 
                 if (silverfish.isPresent()) {
-                    setDebugState("Breaking silverfish spawner.");
+                    setDebugState("破坏蠹虫刷怪笼。");
                     return new DestroyBlockTask(silverfish.get());
                 }
             }
             if (endPortalOpened(mod, endPortalCenterLocation)) {
                 openingEndPortal = false;
                 if (needsBuildingMaterials(mod)) {
-                    setDebugState("Collecting building materials.");
+                    setDebugState("收集建筑材料。");
                     return buildMaterialsTask;
                 }
                 if (config.placeSpawnNearEndPortal && itemStorage.hasItem(ItemHelper.BED) && (!spawnSetNearPortal(mod, endPortalCenterLocation))) {
-                    setDebugState("Setting spawn near end portal");
+                    setDebugState("在末地传送门附近设置重生点");
                     return setSpawnNearPortalTask(mod);
 
                 }
-                // We're as ready as we'll ever be, hop into the portal!
-                setDebugState("Entering End");
+                // 我们已经准备就绪，进入传送门！
+                setDebugState("进入末地");
                 enterindEndPortal = true;
                 if (!mod.getExtraBaritoneSettings().isCanWalkOnEndPortal()) {
                     mod.getExtraBaritoneSettings().canWalkOnEndPortal(true);
@@ -1698,7 +1838,7 @@ public class BeatMinecraftTask extends Task {
                             return new CollectBucketLiquidTask.CollectWaterBucketTask(1);
                         }
                         if (!waterPlacedTimer.elapsed()) {
-                            setDebugState("waitin " + waterPlacedTimer.getDuration());
+                            setDebugState("等待 " + waterPlacedTimer.getDuration());
                             return null;
                         }
                         return TaskCatalogue.getItemTask(Items.OBSIDIAN, 1);
@@ -1722,8 +1862,8 @@ public class BeatMinecraftTask extends Task {
                         return null;
                     }
                 }
-                // Open the portal! (we have enough eyes, do it)
-                setDebugState("Opening End Portal");
+                // 打开传送门！（我们有足够的末影之眼，开始操作）
+                setDebugState("打开末地传送门");
                 openingEndPortal = true;
                 return new DoToClosestBlockTask(blockPos -> new InteractWithBlockTask(Items.ENDER_EYE, blockPos), blockPos -> !isEndPortalFrameFilled(mod, blockPos), Blocks.END_PORTAL_FRAME);
             }
@@ -1757,8 +1897,8 @@ public class BeatMinecraftTask extends Task {
                 }
 
             }
-            // Portal Location
-            setDebugState("Locating End Portal...");
+            // 传送门定位
+            setDebugState("定位末地传送门...");
             return locateStrongholdTask;
         }
         return null;

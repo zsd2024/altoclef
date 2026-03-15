@@ -11,28 +11,57 @@ import baritone.api.pathing.goals.Goal;
 import baritone.api.pathing.goals.GoalBlock;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * 到达指定方块的任务类
+ * 此任务用于移动到指定的方块位置
+ */
 public class GetToBlockTask extends CustomBaritoneGoalTask implements ITaskRequiresGrounded {
 
+    // 目标位置
     private final BlockPos _position;
+    // 是否优先使用楼梯
     private final boolean _preferStairs;
+    // 目标维度
     private final Dimension _dimension;
+    // 完成的tick数
     private int finishedTicks = 0;
+    // 漫游计时器
     private final TimerGame wanderTimer = new TimerGame(2);
 
+    /**
+     * 构造函数
+     * @param position 目标位置
+     * @param preferStairs 是否优先使用楼梯
+     */
     public GetToBlockTask(BlockPos position, boolean preferStairs) {
         this(position, preferStairs, null);
     }
 
+    /**
+     * 构造函数
+     * @param position 目标位置
+     * @param dimension 目标维度
+     */
     public GetToBlockTask(BlockPos position, Dimension dimension) {
         this(position, false, dimension);
     }
 
+    /**
+     * 构造函数
+     * @param position 目标位置
+     * @param preferStairs 是否优先使用楼梯
+     * @param dimension 目标维度
+     */
     public GetToBlockTask(BlockPos position, boolean preferStairs, Dimension dimension) {
         _dimension = dimension;
         _position = position;
         _preferStairs = preferStairs;
     }
 
+    /**
+     * 构造函数
+     * @param position 目标位置
+     */
     public GetToBlockTask(BlockPos position) {
         this(position, false);
     }
@@ -50,7 +79,7 @@ public class GetToBlockTask extends CustomBaritoneGoalTask implements ITaskRequi
         }
         if (finishedTicks > 10*20) {
             wanderTimer.reset();
-            Debug.logWarning("GetToBlock was finished for 10 seconds yet is still being called, wandering");
+            Debug.logWarning("GetToBlock在10秒内已完成但仍在被调用，开始漫游");
             finishedTicks = 0;
             return new TimeoutWanderTask();
         }
@@ -64,6 +93,7 @@ public class GetToBlockTask extends CustomBaritoneGoalTask implements ITaskRequi
     @Override
     protected void onStart() {
         super.onStart();
+        // 如果优先使用楼梯，设置行为配置
         if (_preferStairs) {
             AltoClef.getInstance().getBehaviour().push();
             AltoClef.getInstance().getBehaviour().setPreferredStairs(true);
@@ -74,6 +104,7 @@ public class GetToBlockTask extends CustomBaritoneGoalTask implements ITaskRequi
     @Override
     protected void onStop(Task interruptTask) {
         super.onStop(interruptTask);
+        // 如果优先使用楼梯，恢复行为配置
         if (_preferStairs) {
             AltoClef.getInstance().getBehaviour().pop();
         }
@@ -94,7 +125,7 @@ public class GetToBlockTask extends CustomBaritoneGoalTask implements ITaskRequi
 
     @Override
     protected String toDebugString() {
-        return "Getting to block " + _position + (_dimension != null ? " in dimension " + _dimension : "");
+        return "到达方块 " + _position + (_dimension != null ? " 在维度 " + _dimension : "");
     }
 
 

@@ -15,13 +15,17 @@ import net.minecraft.item.Item;
 
 import java.util.Arrays;
 
+/**
+ * 雕刻然后收集任务
+ * 用于先对某种方块进行雕刻操作，然后收集结果方块
+ */
 public class CarveThenCollectTask extends ResourceTask {
 
-    private final ItemTarget _target;
-    private final Block[] _targetBlocks;
-    private final ItemTarget _toCarve;
-    private final Block[] _toCarveBlocks;
-    private final ItemTarget _carveWith;
+    private final ItemTarget _target; // 目标物品
+    private final Block[] _targetBlocks; // 目标方块数组
+    private final ItemTarget _toCarve; // 要雕刻的物品
+    private final Block[] _toCarveBlocks; // 要雕刻的方块数组
+    private final ItemTarget _carveWith; // 用于雕刻的工具
 
     public CarveThenCollectTask(ItemTarget target, Block[] targetBlocks, ItemTarget toCarve, Block[] toCarveBlocks, ItemTarget carveWith) {
         super(target);
@@ -43,49 +47,49 @@ public class CarveThenCollectTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // If target block spotted, break it!
-        // If toCarve block spotted, carve it!
+        // 如果发现目标方块，破坏它！
+        // 如果发现要雕刻的方块，雕刻它！
         // neededCarve = (neededTarget - currentTarget)
-        // If neededCarve > currentCarveItems:
-        //      collect carve items!
-        // ELSE:
-        //      Place carved items down
+        // 如果neededCarve > currentCarveItems:
+        //      收集雕刻物品！
+        // 否则:
+        //      放置要雕刻的物品
 
-        // If our target block is placed, break it!
+        // 如果我们的目标方块被放置，破坏它！
         if (mod.getBlockScanner().anyFound(_targetBlocks)) {
-            setDebugState("Breaking carved/target block");
+            setDebugState("破坏雕刻/目标方块");
             return new DoToClosestBlockTask(DestroyBlockTask::new, _targetBlocks);
         }
-        // Collect our "carve with" item (can be shears, axe, whatever)
+        // 收集我们的"雕刻工具"（可以是剪刀、斧头等）
         if (!StorageHelper.itemTargetsMetInventory(_carveWith)) {
-            setDebugState("Collect our carve tool");
+            setDebugState("收集我们的雕刻工具");
             return TaskCatalogue.getItemTask(_carveWith);
         }
-        // If our carve block is spotted, carve it.
+        // 如果发现要雕刻的方块，雕刻它
         if (mod.getBlockScanner().anyFound(_toCarveBlocks)) {
-            setDebugState("Carving block");
+            setDebugState("雕刻方块");
             return new DoToClosestBlockTask(blockPos -> new InteractWithBlockTask(_carveWith, blockPos, false), _toCarveBlocks);
         }
-        // Collect carve blocks if we don't have enough, or place them down if we do.
+        // 如果我们没有足够的雕刻方块则收集它们，否则放置它们
         int neededCarveItems = _target.getTargetCount() - mod.getItemStorage().getItemCount(_target);
         int currentCarveItems = mod.getItemStorage().getItemCount(_toCarve);
         if (neededCarveItems > currentCarveItems) {
-            setDebugState("Collecting more blocks to carve");
+            setDebugState("收集更多要雕刻的方块");
             return TaskCatalogue.getItemTask(_toCarve);
         } else {
-            setDebugState("Placing blocks to carve down");
+            setDebugState("放置要雕刻的方块");
             return new PlaceBlockNearbyTask(_toCarveBlocks);
         }
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -98,6 +102,6 @@ public class CarveThenCollectTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Getting after carving: " + _target;
+        return "雕刻后获取: " + _target;
     }
 }

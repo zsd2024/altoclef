@@ -9,12 +9,12 @@ import baritone.Baritone;
 import baritone.api.utils.input.Input;
 
 /**
- * Will move around randomly while holding shift
- * Used to escape weird situations where baritone doesn't work.
+ * 安全随机摆动任务 - 在按住潜行键时随机移动
+ * 用于从baritone无法正常工作的情况中逃脱。
  */
 public class SafeRandomShimmyTask extends Task {
 
-    private final TimerGame _lookTimer;
+    private final TimerGame _lookTimer; // 看向计时器
 
     public SafeRandomShimmyTask(float randomLookInterval) {
         _lookTimer = new TimerGame(randomLookInterval);
@@ -33,13 +33,14 @@ public class SafeRandomShimmyTask extends Task {
     protected Task onTick() {
 
         if (_lookTimer.elapsed()) {
-            Debug.logMessage("Random Orientation");
+            Debug.logMessage("随机方向");
             _lookTimer.reset();
-            LookHelper.randomOrientation();
+            LookHelper.randomOrientation(); // 随机改变朝向
         }
 
         Baritone baritone = AltoClef.getInstance().getClientBaritone();
 
+        // 强制按住潜行、前进和左键
         baritone.getInputOverrideHandler().setInputForceState(Input.SNEAK, true);
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, true);
         baritone.getInputOverrideHandler().setInputForceState(Input.CLICK_LEFT, true);
@@ -50,6 +51,7 @@ public class SafeRandomShimmyTask extends Task {
     protected void onStop(Task interruptTask) {
         Baritone baritone = AltoClef.getInstance().getClientBaritone();
 
+        // 释放按键状态
         baritone.getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, false);
         baritone.getInputOverrideHandler().setInputForceState(Input.SNEAK, false);
         baritone.getInputOverrideHandler().setInputForceState(Input.CLICK_LEFT, false);
@@ -62,6 +64,6 @@ public class SafeRandomShimmyTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Shimmying";
+        return "摆动中";
     }
 }

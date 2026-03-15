@@ -18,15 +18,25 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Crafts an item within the 2x2 inventory crafting grid.
+ * 在2x2物品栏制作网格中制作物品的任务
  */
 public class CraftInInventoryTask extends ResourceTask {
 
+    // 配方目标
     private final RecipeTarget _target;
+    // 是否收集材料
     private final boolean _collect;
+    // 是否忽略未目录化的槽位
     private final boolean _ignoreUncataloguedSlots;
+    // 完整检查是否失败
     private boolean _fullCheckFailed = false;
 
+    /**
+     * 构造函数，指定配方目标、是否收集材料和是否忽略未目录化槽位
+     * @param target 配方目标
+     * @param collect 是否收集材料
+     * @param ignoreUncataloguedSlots 是否忽略未目录化的槽位
+     */
     public CraftInInventoryTask(RecipeTarget target, boolean collect, boolean ignoreUncataloguedSlots) {
         super(new ItemTarget(target.getOutputItem(), target.getTargetCount()));
         _target = target;
@@ -34,12 +44,17 @@ public class CraftInInventoryTask extends ResourceTask {
         _ignoreUncataloguedSlots = ignoreUncataloguedSlots;
     }
 
+    /**
+     * 构造函数，使用默认参数创建制作任务
+     * @param target 配方目标
+     */
     public CraftInInventoryTask(RecipeTarget target) {
         this(target, true, false);
     }
 
     @Override
     protected boolean shouldAvoidPickingUp(AltoClef mod) {
+        // 在制作任务中不应避免拾取
         return false;
     }
 
@@ -54,17 +69,17 @@ public class CraftInInventoryTask extends ResourceTask {
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             }
             Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-            // Try throwing away cursor slot if it's garbage
+            // 如果光标槽是垃圾，尝试丢弃
             garbage.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
         } else {
             StorageHelper.closeScreen();
-        } // Just to be safe I guess
+        } // 为了安全起见
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // Grab from output FIRST
+        // 首先从输出槽获取
         if (StorageHelper.isPlayerInventoryOpen()) {
             if (StorageHelper.getItemStackInCursorSlot().isEmpty()) {
                 Item outputItem = StorageHelper.getItemStackInSlot(PlayerSlot.CRAFT_OUTPUT_SLOT).getItem();
@@ -81,14 +96,14 @@ public class CraftInInventoryTask extends ResourceTask {
         ItemTarget toGet = itemTargets[0];
         Item toGetItem = toGet.getMatches()[0];
         if (_collect && !StorageHelper.hasRecipeMaterialsOrTarget(mod, _target)) {
-            // Collect recipe materials
-            setDebugState("Collecting materials");
+            // 收集配方材料
+            setDebugState("收集材料");
             return collectRecipeSubTask(mod);
         }
 
-        // No need to free inventory, output gets picked up.
+        // 无需释放物品栏，输出会被拾取
 
-        setDebugState("Crafting in inventory... for " + toGet);
+        setDebugState("在物品栏中制作... 为了 " + toGet);
         return mod.getModSettings().shouldUseCraftingBookToCraft()
                 ? new CraftGenericWithRecipeBooksTask(_target)
                 : new CraftGenericManuallyTask(_target);
@@ -114,9 +129,10 @@ public class CraftInInventoryTask extends ResourceTask {
         }
     }
 
-    // TODO check if this doesnt break something... but generally this shouldnt pickup items
+    // TODO 检查这是否破坏了某些功能... 但通常这不应该拾取物品
     @Override
     protected double getPickupRange(AltoClef mod) {
+        // 制作任务不需要拾取范围
         return 0;
     }
 
@@ -134,19 +150,36 @@ public class CraftInInventoryTask extends ResourceTask {
         return toCraftingDebugStringName() + " " + _target;
     }
 
-    // virtual. By default assumes subtasks are CATALOGUED (in TaskCatalogue.java)
+    /**
+     * 虚拟方法。默认假设子任务是目录化的（在TaskCatalogue.java中）
+     * @param mod AltoClef实例
+     * @return 返回收集配方子任务
+     */
     protected Task collectRecipeSubTask(AltoClef mod) {
         return new CollectRecipeCataloguedResourcesTask(_ignoreUncataloguedSlots, _target);
     }
 
+    /**
+     * 返回制作调试字符串名称
+     * @return 制作任务的调试名称
+     */
     protected String toCraftingDebugStringName() {
-        return "Craft 2x2 Task";
+        return "制作 2x2 任务";
     }
 
+    /**
+     * 检查制作是否相等
+     * @param other 另一个制作任务
+     * @return 如果制作任务相等返回true
+     */
     protected boolean isCraftingEqual(CraftInInventoryTask other) {
         return true;
     }
 
+    /**
+     * 获取配方目标
+     * @return 返回配方目标
+     */
     public RecipeTarget getRecipeTarget() {
         return _target;
     }

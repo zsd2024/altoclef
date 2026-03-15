@@ -12,9 +12,13 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.item.Items;
 
+/**
+ * 收集下界砖块任务
+ * 用于收集下界砖块，优先挖掘现有的下界砖块，否则使用下界砖合成
+ */
 public class CollectNetherBricksTask extends ResourceTask {
 
-    private final int _count;
+    private final int _count; // 目标下界砖块数量
 
     public CollectNetherBricksTask(int count) {
         super(Items.NETHER_BRICKS, count);
@@ -28,16 +32,16 @@ public class CollectNetherBricksTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
 
         /*
-         * If we find nether bricks, mine them.
+         * 如果我们找到下界砖块，挖掘它们
          *
-         * Otherwise craft them from the "nether_brick" item.
+         * 否则使用"nether_brick"物品合成它们
          */
 
         if (mod.getBlockScanner().anyFound(Blocks.NETHER_BRICKS)) {
@@ -50,7 +54,7 @@ public class CollectNetherBricksTask extends ResourceTask {
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -60,6 +64,6 @@ public class CollectNetherBricksTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + _count + " nether bricks.";
+        return "收集 " + _count + " 个下界砖块。";
     }
 }

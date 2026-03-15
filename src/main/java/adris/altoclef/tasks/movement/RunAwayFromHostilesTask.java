@@ -13,10 +13,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * 远离敌对生物任务 - 远离敌对生物指定距离
+ */
 public class RunAwayFromHostilesTask extends CustomBaritoneGoalTask {
 
-    private final double distanceToRun;
-    private final boolean includeSkeletons;
+    private final double distanceToRun; // 需要跑开的距离
+    private final boolean includeSkeletons; // 是否包括骷髅
 
     public RunAwayFromHostilesTask(double distance, boolean includeSkeletons) {
         distanceToRun = distance;
@@ -30,7 +33,7 @@ public class RunAwayFromHostilesTask extends CustomBaritoneGoalTask {
 
     @Override
     protected Goal newGoal(AltoClef mod) {
-        // We want to run away NOW
+        // 我们现在就要逃跑
         mod.getClientBaritone().getPathingBehavior().forceCancel();
         return new GoalRunAwayFromHostiles(mod, distanceToRun);
     }
@@ -45,9 +48,12 @@ public class RunAwayFromHostilesTask extends CustomBaritoneGoalTask {
 
     @Override
     protected String toDebugString() {
-        return "NIGERUNDAYOO, SUMOOKEYY! distance="+ distanceToRun +", skeletons="+ includeSkeletons;
+        return "远离敌对生物! 距离="+ distanceToRun +", 包括骷髅="+ includeSkeletons;
     }
 
+    /**
+     * 远离敌对生物目标类
+     */
     private class GoalRunAwayFromHostiles extends GoalRunAwayFromEntities {
 
         public GoalRunAwayFromHostiles(AltoClef mod, double distance) {
@@ -59,6 +65,7 @@ public class RunAwayFromHostilesTask extends CustomBaritoneGoalTask {
             Stream<LivingEntity> stream = mod.getEntityTracker().getHostiles().stream();
             synchronized (BaritoneHelper.MINECRAFT_LOCK) {
                 if (!includeSkeletons) {
+                    // 过滤掉骷髅实体
                     stream = stream.filter(hostile -> !(hostile instanceof SkeletonEntity));
                 }
                 return stream.collect(Collectors.toList());

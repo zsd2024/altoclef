@@ -41,21 +41,27 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * Here we go
- * the final stretch
+ * 杀死末影龙任务
+ * 这里是最终的冲刺
  * <p>
- * Until something inevitably fucks up and I gotta go back here to fix it
- * in which case this'll be pretty ironic.
+ * 除非不可避免地出现问题而我必须回到这里修复它
+ * 在这种情况下这会相当讽刺。
  */
 public class KillEnderDragonTask extends Task {
 
     private static final String[] DIAMOND_ARMORS = new String[]{"diamond_chestplate", "diamond_leggings", "diamond_helmet", "diamond_boots"};
-    // Don't accidentally anger endermen lol
+    // 不要意外激怒末影人 lol
     private final TimerGame lookDownTimer = new TimerGame(0.5);
     private final Task collectBuildMaterialsTask = new CollectBlockByOneTask.CollectEndStoneTask(100);
     private final PunkEnderDragonTask punkTask = new PunkEnderDragonTask();
     private BlockPos exitPortalTop;
 
+    /**
+     * 如果有任何物品掉落，则获取拾取任务
+     * @param mod AltoClef实例
+     * @param itemsToPickup 要拾取的物品数组
+     * @return 如果有物品掉落返回拾取任务，否则返回null
+     */
     private static Task getPickupTaskIfAny(AltoClef mod, Item... itemsToPickup) {
         for (Item check : itemsToPickup) {
             if (mod.getEntityTracker().itemDropped(check)) {
@@ -70,7 +76,7 @@ public class KillEnderDragonTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         mod.getBehaviour().push();
-        // Don't forcefield endermen.
+        // 不要对末影人使用力场。
         mod.getBehaviour().addForceFieldExclusion(entity -> entity instanceof EndermanEntity || entity instanceof EnderDragonEntity || entity instanceof EnderDragonPart);
         mod.getBehaviour().setPreferredStairs(true);
     }
@@ -83,10 +89,10 @@ public class KillEnderDragonTask extends Task {
             exitPortalTop = locateExitPortalTop(mod);
         }
 
-        // Collect the following if dropped:
-        // - Diamond Sword
-        // - Diamond Armor
-        // - Food (List)
+        // 如果掉落则收集：
+        // - 钻石剑
+        // - 钻石头盔
+        // - 食物（列表）
 
         List<Item> toPickUp = new ArrayList<>(Arrays.asList(Items.DIAMOND_SWORD, Items.DIAMOND_BOOTS, Items.DIAMOND_LEGGINGS, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_HELMET));
         if (StorageHelper.calculateInventoryFoodScore() < 10) {
@@ -97,20 +103,20 @@ public class KillEnderDragonTask extends Task {
 
         Task pickupDrops = getPickupTaskIfAny(mod, toPickUp.toArray(Item[]::new));
         if (pickupDrops != null) {
-            setDebugState("Picking up drops in end.");
+            setDebugState("在末地拾取掉落物。");
             return pickupDrops;
         }
 
-        // If not equipped diamond armor and we have any, equip it.
+        // 如果没有装备钻石盔甲且我们有任意一件，就装备它。
         for (Item armor : ItemHelper.DIAMOND_ARMORS) {
             try {
                 if (mod.getItemStorage().hasItem(armor) && !StorageHelper.isArmorEquipped(armor)) {
-                    setDebugState("Equipping " + armor);
+                    setDebugState("装备 " + armor);
                     return new EquipArmorTask(armor);
                 }
             } catch (NullPointerException e) {
-                // Should never happen.
-                Debug.logError("NullpointerException that Should never happen.");
+                // 不应该发生。
+                Debug.logError("不应发生的空指针异常。");
                 e.printStackTrace();
             }
         }
@@ -122,50 +128,50 @@ public class KillEnderDragonTask extends Task {
             }
         }
 
-        // If there is a portal, enter it.
+        // 如果有传送门，进入它。
         if (mod.getBlockScanner().anyFound(Blocks.END_PORTAL)) {
-            setDebugState("Entering portal to beat the game.");
+            setDebugState("进入传送门以完成游戏。");
             return new DoToClosestBlockTask(
                     blockPos -> new GetToBlockTask(blockPos.up(), false),
                     Blocks.END_PORTAL
             );
         }
 
-        // If we have no building materials (stone + cobble + end stone), get end stone
-        // If there are crystals, suicide blow em up.
-        // If there are no crystals, punk the dragon if it's close.
+        // 如果我们没有建筑材料（石头 + 圆石 + 末地石），获取末地石
+        // 如果有水晶，自杀式爆炸摧毁它们。
+        // 如果没有水晶，如果龙靠近就攻击龙。
         int MINIMUM_BUILDING_BLOCKS = 1;
         if (mod.getEntityTracker().entityFound(EndCrystalEntity.class) && mod.getItemStorage().getItemCount(Items.DIRT, Items.COBBLESTONE, Items.NETHERRACK, Items.END_STONE) < MINIMUM_BUILDING_BLOCKS || (collectBuildMaterialsTask.isActive() && !collectBuildMaterialsTask.isFinished())) {
             if (StorageHelper.miningRequirementMetInventory(MiningRequirement.WOOD)) {
                 mod.getBehaviour().addProtectedItems(Items.END_STONE);
-                setDebugState("Collecting building blocks to pillar to crystals");
+                setDebugState("收集建筑材料以搭建柱子到水晶");
                 return collectBuildMaterialsTask;
             }
         } else {
             mod.getBehaviour().removeProtectedItems(Items.END_STONE);
         }
 
-        // Blow up the nearest end crystal
+        // 爆炸最近的末地水晶
         if (mod.getEntityTracker().entityFound(EndCrystalEntity.class)) {
-            setDebugState("Kamakazeeing crystals");
+            setDebugState("自杀式攻击水晶");
             return new DoToClosestEntityTask(
                     (toDestroy) -> {
                         if (toDestroy.isInRange(mod.getPlayer(), 7)) {
                             mod.getControllerExtras().attack(toDestroy);
                         }
-                        // Go next to the crystal, arbitrary where we just need to get close.
+                        // 到水晶旁边，任意位置，我们只需要靠近。
                         return new GetToBlockTask(toDestroy.getBlockPos().add(1,0,0), false);
                     },
                     EndCrystalEntity.class
             );
         }
 
-        // Punk dragon
+        // 攻击末影龙
         if (mod.getEntityTracker().entityFound(EnderDragonEntity.class)) {
-            setDebugState("Punking dragon");
+            setDebugState("攻击末影龙");
             return punkTask;
         }
-        setDebugState("Couldn't find ender dragon... This can be very good or bad news.");
+        setDebugState("找不到末影龙... 这可能是好消息或坏消息。");
         return null;
         //return new KillEntitiesTask(EnderDragonEntity.class);
     }
@@ -182,13 +188,22 @@ public class KillEnderDragonTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Killing Ender Dragon";
+        return "杀死末影龙";
     }
 
+    /**
+     * 检查是否正在攻击龙
+     * @return 如果正在攻击龙返回true
+     */
     private boolean isRailingOnDragon() {
         return punkTask.getMode() == Mode.RAILING;
     }
 
+    /**
+     * 定位出口传送门顶部
+     * @param mod AltoClef实例
+     * @return 返回出口传送门顶部位置
+     */
     private BlockPos locateExitPortalTop(AltoClef mod) {
         if (!mod.getChunkTracker().isChunkLoaded(new BlockPos(0, 64, 0))) return null;
         int height = WorldHelper.getGroundHeight(0, 0, Blocks.BEDROCK);
@@ -196,30 +211,55 @@ public class KillEnderDragonTask extends Task {
         return null;
     }
 
+    /**
+     * 攻击模式枚举
+     */
     private enum Mode {
+        // 等待栖息
         WAITING_FOR_PERCH,
+        // 攻击
         RAILING
     }
 
+    /**
+     * 攻击末影龙的内部任务类
+     * 负责处理攻击末影龙的具体策略和行为
+     */
     private class PunkEnderDragonTask extends Task {
 
+        // 龙息伤害成本映射
         private final HashMap<BlockPos, Double> _breathCostMap = new HashMap<>();
+        // 攻击持续时间计时器
         private final TimerGame _hitHoldTimer = new TimerGame(0.1);
+        // 攻击重置计时器
         private final TimerGame _hitResetTimer = new TimerGame(0.4);
+        // 随机徘徊位置变化超时计时器
         private final TimerGame _randomWanderChangeTimeout = new TimerGame(20);
+        // 当前模式
         private Mode _mode = Mode.WAITING_FOR_PERCH;
 
+        // 随机徘徊位置
         private BlockPos _randomWanderPos;
+        // 是否正在攻击
         private boolean _wasHitting;
+        // 是否已释放
         private boolean _wasReleased;
 
         private PunkEnderDragonTask() {
         }
 
+        /**
+         * 获取当前模式
+         * @return 返回当前模式
+         */
         public Mode getMode() {
             return _mode;
         }
 
+        /**
+         * 攻击龙
+         * @param mod AltoClef实例
+         */
         private void hit(AltoClef mod) {
             mod.getExtraBaritoneSettings().setInteractionPaused(true);
             if (!_wasHitting) {
@@ -227,26 +267,30 @@ public class KillEnderDragonTask extends Task {
                 _wasReleased = false;
                 _hitHoldTimer.reset();
                 _hitResetTimer.reset();
-                Debug.logInternal("HIT");
+                Debug.logInternal("攻击");
                 mod.getInputControls().tryPress(Input.CLICK_LEFT);
                 //mod.getPlayer().swingHand(Hand.MAIN_HAND);
             }
             if (_hitHoldTimer.elapsed()) {
                 if (!_wasReleased) {
-                    Debug.logInternal("    up");
+                    Debug.logInternal("释放");
                     //mod.getControllerExtras().mouseClickOverride(0, false);
                     _wasReleased = true;
                 }
             }
             if (_wasHitting && _hitResetTimer.elapsed() && mod.getPlayer().getAttackCooldownProgress(0) > 0.99) {
                 _wasHitting = false;
-                // Code duplication maybe?
+                // 代码可能重复？
                 //mod.getControllerExtras().mouseClickOverride(0, false);
                 mod.getExtraBaritoneSettings().setInteractionPaused(false);
                 _hitResetTimer.reset();
             }
         }
 
+        /**
+         * 停止攻击
+         * @param mod AltoClef实例
+         */
         private void stopHitting(AltoClef mod) {
             if (_wasHitting) {
                 //MinecraftClient.getInstance().options.keyAttack.setPressed(false);
@@ -270,7 +314,7 @@ public class KillEnderDragonTask extends Task {
             AltoClef mod = AltoClef.getInstance();
 
             if (!mod.getEntityTracker().entityFound(EnderDragonEntity.class)) {
-                setDebugState("No dragon found.");
+                setDebugState("未找到龙。");
                 return null;
             }
             List<EnderDragonEntity> dragons = mod.getEntityTracker().getTrackedEntities(EnderDragonEntity.class);
@@ -282,22 +326,22 @@ public class KillEnderDragonTask extends Task {
                     switch (_mode) {
                         case RAILING -> {
                             if (!perchingOrGettingReady) {
-                                Debug.logMessage("Dragon no longer perching.");
+                                Debug.logMessage("龙不再栖息。");
                                 mod.getClientBaritone().getCustomGoalProcess().onLostControl();
                                 _mode = Mode.WAITING_FOR_PERCH;
                                 break;
                             }
                             //DamageSource.DRAGON_BREATH
                             Entity head = dragon.head;
-                            // Go for the head
+                            // 攻击龙头
                             if (head.isInRange(mod.getPlayer(), 7.5) && dragon.ticksSinceDeath <= 1) {
-                                // Equip weapon
+                                // 装备武器
                                 AbstractKillEntityTask.equipWeapon(mod);
-                                // Look torwards da dragon
+                                // 朝向龙看
                                 Vec3d targetLookPos = head.getPos().add(0, 3, 0);
                                 Rotation targetRotation = RotationUtils.calcRotationFromVec3d(mod.getClientBaritone().getPlayerContext().playerHead(), targetLookPos, mod.getClientBaritone().getPlayerContext().playerRotations());
                                 mod.getClientBaritone().getLookBehavior().updateTarget(targetRotation, true);
-                                // Also look towards da dragon
+                                // 同时朝向龙看
                                 OptionsVer.setAutoJump(false);
                                 mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.MOVE_FORWARD, true);
                                 hit(mod);
@@ -305,14 +349,14 @@ public class KillEnderDragonTask extends Task {
                                 stopHitting(mod);
                             }
                             if (!mod.getClientBaritone().getCustomGoalProcess().isActive()) {
-                                // Set goal to closest block within the pillar that's by the head.
+                                // 设置目标为龙头附近的柱子中的最近方块。
                                 if (exitPortalTop != null) {
                                     int bottomYDelta = -3;
                                     BlockPos closest = null;
                                     double closestDist = Double.POSITIVE_INFINITY;
                                     for (int dx = -2; dx <= 2; ++dx) {
                                         for (int dz = -2; dz <= 2; ++dz) {
-                                            // We have sort of a rounded circle here.
+                                            // 我们这里有个圆形。
                                             if (Math.abs(dx) == 2 && Math.abs(dz) == 2) continue;
                                             BlockPos toCheck = exitPortalTop.add(dx,bottomYDelta,dz);
                                             double distSq = BlockPosVer.getSquaredDistance(toCheck,head.getPos());
@@ -329,24 +373,24 @@ public class KillEnderDragonTask extends Task {
                                     }
                                 }
                             }
-                            setDebugState("Railing on dragon");
+                            setDebugState("攻击龙");
                         }
                         case WAITING_FOR_PERCH -> {
                             stopHitting(mod);
                             if (perchingOrGettingReady) {
-                                // We're perching!!
+                                // 我们栖息了！
                                 mod.getClientBaritone().getCustomGoalProcess().onLostControl();
-                                Debug.logMessage("Dragon perching detected. Dabar duosiu į snuki.");
+                                Debug.logMessage("检测到龙栖息。现在我要去攻击它。");
                                 _mode = Mode.RAILING;
                                 break;
                             }
-                            // Run around aimlessly, dodging dragon fire
+                            // 无目的地奔跑，躲避龙的火焰
                             if (_randomWanderPos != null && WorldHelper.inRangeXZ(mod.getPlayer(), _randomWanderPos, 2)) {
                                 _randomWanderPos = null;
                             }
                             if (_randomWanderPos != null && _randomWanderChangeTimeout.elapsed()) {
                                 _randomWanderPos = null;
-                                Debug.logMessage("Reset wander pos after timeout, oof");
+                                Debug.logMessage("超时后重置徘徊位置");
                             }
                             if (_randomWanderPos == null) {
                                 _randomWanderPos = getRandomWanderPos(mod);
@@ -358,7 +402,7 @@ public class KillEnderDragonTask extends Task {
                                         new GoalGetToBlock(_randomWanderPos)
                                 );
                             }
-                            setDebugState("Waiting for perch");
+                            setDebugState("等待栖息");
                         }
                     }
                 }
@@ -383,9 +427,14 @@ public class KillEnderDragonTask extends Task {
 
         @Override
         protected String toDebugString() {
-            return "Punking the dragon";
+            return "攻击龙";
         }
 
+        /**
+         * 获取随机徘徊位置
+         * @param mod AltoClef实例
+         * @return 返回随机徘徊位置
+         */
         private BlockPos getRandomWanderPos(AltoClef mod) {
             double RADIUS_RANGE = 45;
             double MIN_RADIUS = 7;
@@ -394,7 +443,7 @@ public class KillEnderDragonTask extends Task {
 
             while (pos == null) {
                 if (allowed-- < 0) {
-                    Debug.logWarning("Failed to find random solid ground in end, this may lead to problems.");
+                    Debug.logWarning("在末地未能找到随机的坚实地面，这可能会导致问题。");
                     return null;
                 }
                 double radius = MIN_RADIUS + (RADIUS_RANGE - MIN_RADIUS) * Math.random();
@@ -405,7 +454,7 @@ public class KillEnderDragonTask extends Task {
                 if (y == -1) continue;
                 BlockPos check = new BlockPos(x, y, z);
                 if (mod.getWorld().getBlockState(check).getBlock() == Blocks.END_STONE) {
-                    // We found a spot!
+                    // 我们找到了一个位置！
                     pos = check.up();
                 }
             }

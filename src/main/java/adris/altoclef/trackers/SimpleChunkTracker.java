@@ -19,7 +19,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
- * Keeps track of currently loaded chunks. That's it.
+ * 简单区块跟踪器 - 跟踪当前已加载的区块。仅此而已。
  */
 public class SimpleChunkTracker {
 
@@ -29,32 +29,54 @@ public class SimpleChunkTracker {
     public SimpleChunkTracker(AltoClef mod) {
         this.mod = mod;
 
-        // When chunks load...
+        // 当区块加载时...
         EventBus.subscribe(ChunkLoadEvent.class, evt -> onLoad(evt.chunk.getPos()));
         EventBus.subscribe(ChunkUnloadEvent.class, evt -> onUnload(evt.chunkPos));
     }
 
+    /**
+     * 区块加载时的回调函数
+     * @param pos 加载的区块位置
+     */
     private void onLoad(ChunkPos pos) {
         //Debug.logInternal("LOADED: " + pos);
         loaded.add(pos);
     }
 
+    /**
+     * 区块卸载时的回调函数
+     * @param pos 卸载的区块位置
+     */
     private void onUnload(ChunkPos pos) {
         //Debug.logInternal("unloaded: " + pos);
         loaded.remove(pos);
     }
 
+    /**
+     * 检查区块是否已加载
+     * @param pos 区块位置
+     * @return 是否已加载
+     */
     public boolean isChunkLoaded(ChunkPos pos) {
         return !(mod.getWorld().getChunk(pos.x, pos.z) instanceof EmptyChunk);
     }
 
+    /**
+     * 检查指定位置的区块是否已加载
+     * @param pos 坐标位置
+     * @return 是否已加载
+     */
     public boolean isChunkLoaded(BlockPos pos) {
         return isChunkLoaded(new ChunkPos(pos));
     }
 
+    /**
+     * 获取已加载的区块列表
+     * @return 已加载的区块位置列表
+     */
     public List<ChunkPos> getLoadedChunks() {
         List<ChunkPos> result = new ArrayList<>(loaded);
-        // Only show LOADED chunks.
+        // 只显示已加载的区块。
         result = result.stream()
                 .filter(this::isChunkLoaded)
                 .distinct()
@@ -63,12 +85,12 @@ public class SimpleChunkTracker {
     }
 
     /**
-     * Loops through every block in a chunk if it is loaded.
-     * If the chunk isn't loaded, it doesn't scan anything.
+     * 遍历区块中的每个方块（如果区块已加载）。
+     * 如果区块未加载，则不扫描任何内容。
      *
-     * @param chunk       The chunk pos to scan
-     * @param onBlockStop Run for every block until it returns true, where it stops scanning.
-     * @return whether `onBlockStop` returned true at any point.
+     * @param chunk       要扫描的区块位置
+     * @param onBlockStop 对每个方块运行，直到返回true时停止扫描。
+     * @return `onBlockStop` 是否在任何时刻返回了true。
      */
     public boolean scanChunk(ChunkPos chunk, Predicate<BlockPos> onBlockStop) {
         if (!isChunkLoaded(chunk)) return false;
@@ -86,6 +108,11 @@ public class SimpleChunkTracker {
         return false;
     }
 
+    /**
+     * 扫描区块中的每个方块
+     * @param chunk 要扫描的区块位置
+     * @param onBlock 对每个方块执行的操作
+     */
     public void scanChunk(ChunkPos chunk, Consumer<BlockPos> onBlock) {
         scanChunk(chunk, (block) -> {
             onBlock.accept(block);
@@ -93,8 +120,12 @@ public class SimpleChunkTracker {
         });
     }
 
+    /**
+     * 重置区块跟踪器
+     * @param mod AltoClef实例
+     */
     public void reset(AltoClef mod) {
-        Debug.logInternal("CHUNKS RESET");
+        Debug.logInternal("区块已重置");
         loaded.clear();
     }
 }

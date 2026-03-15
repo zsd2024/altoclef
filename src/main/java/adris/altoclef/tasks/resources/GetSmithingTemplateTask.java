@@ -12,10 +12,16 @@ import adris.altoclef.util.Dimension;
 import adris.altoclef.util.helpers.WorldHelper;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * 获取锻造模板任务
+ * 用于获取下界合金升级锻造模板，需要前往下界寻找堡垒遗迹中的箱子
+ */
 public class GetSmithingTemplateTask extends ResourceTask {
 
+    // 黑石搜索任务，用于定位堡垒遗迹区域
     private final Task _searcher = new SearchChunkForBlockTask(Blocks.BLACKSTONE);
     private final int _count;
+    // 箱子位置
     private BlockPos _chestloc = null;
 
     public GetSmithingTemplateTask(int count) {
@@ -25,14 +31,14 @@ public class GetSmithingTemplateTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化工作
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // We must go to the nether.
+        // 必须前往下界
         if (WorldHelper.getCurrentDimension() != Dimension.NETHER) {
-            setDebugState("Going to nether");
+            setDebugState("前往下界");
             return new DefaultGoToDimensionTask(Dimension.NETHER);
         }
         //if (_bastionloc != null && !mod.getChunkTracker().isChunkLoaded(_bastionloc)) {
@@ -40,6 +46,7 @@ public class GetSmithingTemplateTask extends ResourceTask {
         //    _bastionloc = null;
         // }
         if (_chestloc == null) {
+            // 寻找已知的箱子位置
             for (BlockPos pos : mod.getBlockScanner().getKnownLocations(Blocks.CHEST)) {
                 if (WorldHelper.isInteractableBlock(pos)) {
                     _chestloc = pos;
@@ -49,11 +56,12 @@ public class GetSmithingTemplateTask extends ResourceTask {
         }
         if (_chestloc != null) {
             //if (!_chestloc.isWithinDistance(mod.getPlayer().getPos(), 150)) {
-            setDebugState("Destroying Chest"); // TODO: Make It check the chest instead of destroying it
+            setDebugState("破坏箱子"); // TODO: 使其检查箱子而不是破坏
             if (WorldHelper.isInteractableBlock(_chestloc)) {
                 return new DestroyBlockTask(_chestloc);
             } else {
                 _chestloc = null;
+                // 寻找新的可交互箱子
                 for (BlockPos pos : mod.getBlockScanner().getKnownLocations(Blocks.CHEST)) {
                     if (WorldHelper.isInteractableBlock(pos)) {
                         _chestloc = pos;
@@ -63,12 +71,13 @@ public class GetSmithingTemplateTask extends ResourceTask {
             }
             //}
         }
-        setDebugState("Searching for/Traveling around bastion");
+        setDebugState("搜索/在堡垒遗迹周围移动");
         return _searcher;
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
+        // 任务结束时的清理工作
     }
 
     @Override
@@ -78,7 +87,7 @@ public class GetSmithingTemplateTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collect " + _count + " smithing templates";
+        return "收集 " + _count + " 个锻造模板";
     }
 
     @Override

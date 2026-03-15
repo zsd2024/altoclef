@@ -21,42 +21,56 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+/**
+ * 装备盔甲任务
+ * 该任务负责将指定的盔甲物品装备到玩家身上
+ */
 public class EquipArmorTask extends Task {
 
+    // 要装备的物品目标数组
     private final ItemTarget[] toEquip;
 
+    /**
+     * 构造函数，指定要装备的物品目标
+     * @param toEquip 要装备的物品目标数组
+     */
     public EquipArmorTask(ItemTarget... toEquip) {
         this.toEquip = toEquip;
     }
 
+    /**
+     * 构造函数，指定要装备的物品
+     * @param toEquip 要装备的物品数组
+     */
     public EquipArmorTask(Item... toEquip) {
         this(Arrays.stream(toEquip).map(ItemTarget::new).toArray(ItemTarget[]::new));
     }
 
     @Override
     protected void onStart() {
-
+        // 任务开始时不需要特殊处理
     }
 
     @Override
     protected Task onTick() {
+        // 找出未装备的盔甲
         ItemTarget[] armorsNotEquipped = Arrays.stream(toEquip).filter(target -> !StorageHelper.itemTargetsMetInventory(target) && !StorageHelper.isArmorEquipped(target.getMatches())).toArray(ItemTarget[]::new);
         boolean armorMet = armorsNotEquipped.length == 0;
         if (!armorMet) {
-            setDebugState("Obtaining armor");
+            setDebugState("获取盔甲");
             return new CataloguedResourceTask(armorsNotEquipped);
         }
 
-        setDebugState("Equipping armor");
+        setDebugState("装备盔甲");
         AltoClef mod = AltoClef.getInstance();
 
-        // Now equip
+        // 现在装备
         for (ItemTarget targetArmor : toEquip) {
             Item[] targetArmorMatches = targetArmor.getMatches();
             if (Arrays.stream(targetArmorMatches).toList().contains(Items.SHIELD)) {
                 ShieldItem shield = (ShieldItem) Objects.requireNonNull(targetArmor.getMatches())[0];
                 if (shield == null) {
-                    Debug.logWarning("Item " + targetArmor + " is not armor! Will not equip.");
+                    Debug.logWarning("物品 " + targetArmor + " 不是盔甲！不会装备。");
                 } else {
                     if (!StorageHelper.isArmorEquipped(shield)) {
                         if (!(mod.getPlayer().currentScreenHandler instanceof PlayerScreenHandler)) {
@@ -72,7 +86,7 @@ public class EquipArmorTask extends Task {
                                     return null;
                                 }
                                 Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-                                // Try throwing away cursor slot if it's garbage
+                                // 如果光标槽是垃圾，尝试丢弃
                                 if (garbage.isPresent()) {
                                     mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                                     return null;
@@ -84,7 +98,7 @@ public class EquipArmorTask extends Task {
                         }
                         Slot toMove = PlayerSlot.getEquipSlot(EquipmentSlot.OFFHAND);
                         if (toMove == null) {
-                            Debug.logWarning("Invalid armor equip slot for item " + shield.getTranslationKey());
+                            Debug.logWarning("物品 " + shield.getTranslationKey() + " 的盔甲装备槽无效");
                         }
                         return new MoveItemToSlotFromInventoryTask(targetArmor, toMove);
                     }
@@ -92,7 +106,7 @@ public class EquipArmorTask extends Task {
             } else {
                 ArmorItem item = (ArmorItem) Objects.requireNonNull(targetArmor.getMatches())[0];
                 if (item == null) {
-                    Debug.logWarning("Item " + targetArmor + " is not armor! Will not equip.");
+                    Debug.logWarning("物品 " + targetArmor + " 不是盔甲！不会装备。");
                 } else {
                     if (!StorageHelper.isArmorEquipped(item)) {
                         if (!(mod.getPlayer().currentScreenHandler instanceof PlayerScreenHandler)) {
@@ -108,7 +122,7 @@ public class EquipArmorTask extends Task {
                                     return null;
                                 }
                                 Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-                                // Try throwing away cursor slot if it's garbage
+                                // 如果光标槽是垃圾，尝试丢弃
                                 if (garbage.isPresent()) {
                                     mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                                     return null;
@@ -120,7 +134,7 @@ public class EquipArmorTask extends Task {
                         }
                         Slot toMove = PlayerSlot.getEquipSlot(item.getSlotType());
                         if (toMove == null) {
-                            Debug.logWarning("Invalid armor equip slot for item " + item.getTranslationKey() + ": " + item.getSlotType());
+                            Debug.logWarning("物品 " + item.getTranslationKey() + " 的盔甲装备槽无效: " + item.getSlotType());
                         }
                         return new MoveItemToSlotFromInventoryTask(targetArmor, toMove);
                     }
@@ -138,7 +152,7 @@ public class EquipArmorTask extends Task {
 
     @Override
     protected void onStop(Task interruptTask) {
-
+        // 任务停止时不需要特殊处理
     }
 
     @Override
@@ -151,16 +165,25 @@ public class EquipArmorTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Equipping armor " + ArrayUtils.toString(toEquip);
+        return "装备盔甲 " + ArrayUtils.toString(toEquip);
     }
 
+    /**
+     * 测试所有盔甲是否满足指定条件
+     * @param armorSatisfies 判断盔甲是否满足条件的谓词
+     * @return 如果所有盔甲都满足条件返回true
+     */
     private boolean armorTestAll(Predicate<Item> armorSatisfies) {
-        // If ALL item target has any match that is equipped...
+        // 如果所有物品目标都有任何匹配项已装备...
         return Arrays.stream(toEquip).allMatch(
                 target -> Arrays.stream(target.getMatches()).anyMatch(armorSatisfies)
         );
     }
 
+    /**
+     * 检查所有盔甲是否已装备
+     * @return 如果所有盔甲都已装备返回true
+     */
     public boolean armorEquipped() {
         return armorTestAll(item -> StorageHelper.isArmorEquipped(item));
     }

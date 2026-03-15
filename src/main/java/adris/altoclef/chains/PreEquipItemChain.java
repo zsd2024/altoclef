@@ -12,6 +12,10 @@ import baritone.utils.BlockStateInterface;
 
 import java.util.Optional;
 
+/**
+ * 预装备物品链 - 自动预装备适当物品以备后续使用
+ * 根据当前任务和路径规划，预先装备可能需要的物品
+ */
 public class PreEquipItemChain extends SingleTaskChain {
 
 
@@ -21,30 +25,34 @@ public class PreEquipItemChain extends SingleTaskChain {
 
     @Override
     protected void onTaskFinish(AltoClef mod) {
-
+        // 任务完成时无需特殊处理
     }
 
     @Override
     public float getPriority() {
         update(AltoClef.getInstance());
 
-        // we don't care about overtaking... just pre-equip items in the background
+        // 我们不关心抢占...只是在后台预装备物品
         return -1;
     }
 
+    /**
+     * 更新预装备状态
+     * @param mod AltoClef实例
+     */
     private void update(AltoClef mod) {
         if (mod.getFoodChain().isTryingToEat()) return;
 
         TaskChain currentChain = mod.getTaskRunner().getCurrentTaskChain();
         if (currentChain == null) return;
 
-        // we will need to place or break some blocks, do not pre-equip anything...
+        // 我们需要放置或破坏一些方块，不预装备任何东西...
         Optional<IPath> pathOptional = mod.getClientBaritone().getPathingBehavior().getPath();
         if (pathOptional.isEmpty()) return;
 
         IPath path = pathOptional.get();
 
-        // should this really be created each tick?
+        // 真的需要每一刻都创建这个吗？
         BlockStateInterface bsi = new BlockStateInterface(BaritoneAPI.getProvider().getPrimaryBaritone().getPlayerContext());
         for (IMovement iMovement : path.movements()) {
             Movement movement = (Movement) iMovement;
@@ -52,7 +60,7 @@ public class PreEquipItemChain extends SingleTaskChain {
                     || !movement.toPlace(bsi).isEmpty()) return;
         }
 
-        // we are *probably* trying to kill sth, might as well equip sword
+        // 我们*可能*在尝试杀死某些东西，最好装备武器
         if (currentChain.getTasks().stream().anyMatch(task -> task instanceof AbstractKillEntityTask)) {
             AbstractKillEntityTask.equipWeapon(mod);
         }
@@ -61,7 +69,7 @@ public class PreEquipItemChain extends SingleTaskChain {
 
     @Override
     public String getName() {
-        return "pre-equip item chain";
+        return "预装备物品链";
     }
 
     @Override

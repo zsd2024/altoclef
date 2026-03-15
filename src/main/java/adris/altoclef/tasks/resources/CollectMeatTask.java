@@ -26,6 +26,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+/**
+ * 收集肉类任务
+ * 用于收集各种肉类食物，包括击杀动物、拾取掉落物和熔炼生肉
+ */
 public class CollectMeatTask extends Task {
     public static final CookableFoodTarget[] COOKABLE_FOODS = new CookableFoodTarget[]{
             new CookableFoodTarget("beef", CowEntity.class),
@@ -34,15 +38,20 @@ public class CollectMeatTask extends Task {
             new CookableFoodTarget("mutton", SheepEntity.class),
             new CookableFoodTarget("rabbit", RabbitEntity.class)
     };
-    private final double unitsNeeded;
-    private final TimerGame checkNewOptionsTimer = new TimerGame(10);
-    private SmeltInSmokerTask smeltTask = null;
-    private Task currentResourceTask = null;
+    private final double unitsNeeded; // 需要的肉类单位数量
+    private final TimerGame checkNewOptionsTimer = new TimerGame(10); // 检查新选项的计时器
+    private SmeltInSmokerTask smeltTask = null; // 烟熏炉熔炼任务
+    private Task currentResourceTask = null; // 当前资源任务
 
     public CollectMeatTask(double unitsNeeded) {
         this.unitsNeeded = unitsNeeded;
     }
 
+    /**
+     * 计算食物潜力值
+     * @param food 食物物品堆栈
+     * @return 食物潜力值
+     */
     private static double getFoodPotential(ItemStack food) {
         if (food == null) return 0;
         int count = food.getCount();
@@ -56,12 +65,17 @@ public class CollectMeatTask extends Task {
         return 0;
     }
 
+    /**
+     * 计算潜在的食物单位总数
+     * @param mod AltoClef实例
+     * @return 潜在食物单位
+     */
     private static double calculateFoodPotential(AltoClef mod) {
         double potentialFood = 0;
         for (ItemStack food : mod.getItemStorage().getItemStacksPlayerInventory(true)) {
             potentialFood += getFoodPotential(food);
         }
-        // Check smelting
+        // 检查烟熏炉中的食物
         ScreenHandler screen = mod.getPlayer().currentScreenHandler;
         if (screen instanceof SmokerScreenHandler) {
             potentialFood += getFoodPotential(StorageHelper.getItemStackInSlot(SmokerSlot.INPUT_SLOT_MATERIALS));
@@ -72,7 +86,7 @@ public class CollectMeatTask extends Task {
 
     @Override
     protected void onStart() {
-
+        // 任务开始时的初始化
     }
 
     @Override
@@ -80,28 +94,28 @@ public class CollectMeatTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         CollectFoodTask.blackListChickenJockeys(mod);
-        // If we were previously smelting, keep on smelting.
+        // 如果之前在熔炼，继续熔炼
         if (smeltTask != null && smeltTask.isActive() && !smeltTask.isFinished()) {
-            setDebugState("Cooking...");
+            setDebugState("烹饪中...");
             return smeltTask;
         } else {
             smeltTask = null;
         }
         if (checkNewOptionsTimer.elapsed()) {
-            // Try a new resource task
+            // 尝试新的资源任务
             checkNewOptionsTimer.reset();
             currentResourceTask = null;
         }
         if (currentResourceTask != null && currentResourceTask.isActive() && !currentResourceTask.isFinished() && !currentResourceTask.thisOrChildAreTimedOut()) {
             return currentResourceTask;
         }
-        // Calculate potential
+        // 计算潜力值
         double potentialFood = calculateFoodPotential(mod);
         if (potentialFood >= unitsNeeded) {
-            // Convert our raw foods
-            // PLAN:
-            // - If we have raw foods, smelt all of them
-            // Convert raw foods -> cooked foods
+            // 转换生食
+            // 计划:
+            // - 如果有生食，全部熔炼
+            // 转换生食 -> 熟食
             for (CookableFoodTarget cookable : COOKABLE_FOODS) {
                 int rawCount = mod.getItemStorage().getItemCount(cookable.getRaw());
                 if (rawCount > 0) {
@@ -113,24 +127,24 @@ public class CollectMeatTask extends Task {
                 }
             }
         } else {
-            // Pick up raw/cooked foods on ground
+            // 拾取地面上的生/熟食
             for (CookableFoodTarget cookable : COOKABLE_FOODS) {
                 Task t = this.pickupTaskOrNull(mod, cookable.getRaw(), 20);
                 if (t == null) t = this.pickupTaskOrNull(mod, cookable.getCooked(), 40);
                 if (t != null) {
-                    setDebugState("Picking up Cookable food");
+                    setDebugState("拾取可烹饪食物");
                     currentResourceTask = t;
                     return currentResourceTask;
                 }
             }
-            // Cooked foods
+            // 熟食
             double bestScore = 0;
             Entity bestEntity = null;
             Item bestRawFood = null;
             for (CookableFoodTarget cookable : COOKABLE_FOODS) {
                 if (!mod.getEntityTracker().entityFound(cookable.mobToKill)) continue;
                 Optional<Entity> nearest = mod.getEntityTracker().getClosestEntity(mod.getPlayer().getPos(), cookable.mobToKill);
-                if (nearest.isEmpty()) continue; // ?? This crashed once?
+                if (nearest.isEmpty()) continue; // ?? 曾发生过崩溃？
                 int hungerPerformance = cookable.getCookedUnits();
                 double sqDistance = nearest.get().squaredDistanceTo(mod.getPlayer());
                 double score = (double) 100 * hungerPerformance / (sqDistance);
@@ -141,12 +155,13 @@ public class CollectMeatTask extends Task {
                 }
             }
             if (bestEntity != null) {
-                setDebugState("Killing " + bestEntity.getType().getTranslationKey());
+                setDebugState("击杀 " + bestEntity.getType().getTranslationKey());
                 Predicate<Entity> notBaby = entity -> entity instanceof LivingEntity livingEntity && !livingEntity.isBaby();
                 currentResourceTask = killTaskOrNull(bestEntity, notBaby, bestRawFood);
                 return currentResourceTask;
             }
         }
+        // 检查是否有生食需要熔炼
         for (Item raw : ItemHelper.RAW_FOODS) {
             if (mod.getItemStorage().hasItem(raw)) {
                 Optional<Item> cooked = ItemHelper.getCookedFood(raw);
@@ -157,15 +172,29 @@ public class CollectMeatTask extends Task {
                 }
             }
         }
-        // Look for food.
-        setDebugState("Searching...");
+        // 寻找食物
+        setDebugState("搜索中...");
         return new TimeoutWanderTask();
     }
 
+    /**
+     * 创建击杀任务
+     * @param entity 要击杀的实体
+     * @param entityPredicate 实体谓词
+     * @param itemToGrab 要获取的物品
+     * @return 击杀并拾取任务
+     */
     private Task killTaskOrNull(Entity entity, Predicate<Entity> entityPredicate, Item itemToGrab) {
         return new KillAndLootTask(entity.getClass(), entityPredicate, new ItemTarget(itemToGrab, 1));
     }
 
+    /**
+     * 创建拾取任务（可指定范围）
+     * @param mod AltoClef实例
+     * @param itemToGrab 要拾取的物品
+     * @param maxRange 最大范围
+     * @return 拾取任务或null
+     */
     private Task pickupTaskOrNull(AltoClef mod, Item itemToGrab, double maxRange) {
         Optional<ItemEntity> nearestDrop = Optional.empty();
         if (mod.getEntityTracker().itemDropped(itemToGrab)) {
@@ -180,13 +209,19 @@ public class CollectMeatTask extends Task {
         return null;
     }
 
+    /**
+     * 创建拾取任务（无范围限制）
+     * @param mod AltoClef实例
+     * @param itemToGrab 要拾取的物品
+     * @return 拾取任务或null
+     */
     private Task pickupTaskOrNull(AltoClef mod, Item itemToGrab) {
         return pickupTaskOrNull(mod, itemToGrab, Double.POSITIVE_INFINITY);
     }
 
     @Override
     protected void onStop(Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -204,13 +239,17 @@ public class CollectMeatTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Collect " + unitsNeeded + " units of meat.";
+        return "收集 " + unitsNeeded + " 单位肉类。";
     }
 
+    /**
+     * 可烹饪食物目标类
+     * 定义了可以烹饪的生食和对应的生物
+     */
     public static class CookableFoodTarget {
-        public String rawFood;
-        public String cookedFood;
-        public Class<?> mobToKill;
+        public String rawFood; // 生食名称
+        public String cookedFood; // 熟食名称
+        public Class<?> mobToKill; // 需要击杀的生物类型
 
         public CookableFoodTarget(String rawFood, String cookedFood, Class<?> mobToKill) {
             this.rawFood = rawFood;

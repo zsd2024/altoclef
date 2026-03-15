@@ -15,39 +15,70 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Objects;
 import java.util.function.Predicate;
 
+/**
+ * 进入下界传送门任务类
+ * 此任务负责进入下界传送门并到达目标维度
+ */
 public class EnterNetherPortalTask extends Task {
+    // 获取传送门任务
     private final Task getPortalTask;
+    // 目标维度
     private final Dimension targetDimension;
 
+    // 传送门超时计时器
     private final TimerGame portalTimeout = new TimerGame(10);
+    // 超时漫游任务
     private final TimeoutWanderTask wanderTask = new TimeoutWanderTask(5);
 
+    // 合适的传送门判断条件
     private final Predicate<BlockPos> goodPortal;
 
+    // 是否已离开传送门
     private boolean leftPortal;
 
+    /**
+     * 构造函数
+     * @param getPortalTask 获取传送门任务
+     * @param targetDimension 目标维度
+     * @param goodPortal 合适的传送门判断条件
+     */
     public EnterNetherPortalTask(Task getPortalTask, Dimension targetDimension, Predicate<BlockPos> goodPortal) {
         if (targetDimension == Dimension.END)
-            throw new IllegalArgumentException("Can't build a nether portal to the end.");
+            throw new IllegalArgumentException("无法建造通往末地的下界传送门。");
         this.getPortalTask = getPortalTask;
         this.targetDimension = targetDimension;
         this.goodPortal = goodPortal;
     }
 
+    /**
+     * 构造函数
+     * @param targetDimension 目标维度
+     * @param goodPortal 合适的传送门判断条件
+     */
     public EnterNetherPortalTask(Dimension targetDimension, Predicate<BlockPos> goodPortal) {
         this(null, targetDimension, goodPortal);
     }
 
+    /**
+     * 构造函数
+     * @param getPortalTask 获取传送门任务
+     * @param targetDimension 目标维度
+     */
     public EnterNetherPortalTask(Task getPortalTask, Dimension targetDimension) {
         this(getPortalTask, targetDimension, blockPos -> true);
     }
 
+    /**
+     * 构造函数
+     * @param targetDimension 目标维度
+     */
     public EnterNetherPortalTask(Dimension targetDimension) {
         this(null, targetDimension);
     }
 
     @Override
     protected void onStart() {
+        // 开始任务时设置初始状态
         leftPortal = false;
         portalTimeout.reset();
         wanderTask.resetWander();
@@ -58,7 +89,7 @@ public class EnterNetherPortalTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         if (wanderTask.isActive() && !wanderTask.isFinished()) {
-            setDebugState("Exiting portal for a bit.");
+            setDebugState("暂时离开传送门。");
             portalTimeout.reset();
             leftPortal = true;
             return wanderTask;
@@ -69,7 +100,7 @@ public class EnterNetherPortalTask extends Task {
             if (portalTimeout.elapsed() && !leftPortal) {
                 return wanderTask;
             }
-            setDebugState("Waiting inside portal");
+            setDebugState("在传送门内等待");
             mod.getClientBaritone().getExploreProcess().onLostControl();
             mod.getClientBaritone().getCustomGoalProcess().onLostControl();
             mod.getClientBaritone().getMineProcess().onLostControl();
@@ -89,9 +120,9 @@ public class EnterNetherPortalTask extends Task {
             if (mod.getWorld().getBlockState(blockPos).getBlock() == Blocks.NETHER_PORTAL) {
                 return goodPortal.test(blockPos);
             }
-            // REQUIRE that there be solid ground beneath us, not more portal.
+            // 要求我们下方有坚实的地面，而不是更多的传送门。
             if (!mod.getChunkTracker().isChunkLoaded(blockPos)) {
-                // Eh just assume it's good for now
+                // 呃，暂时假设它是好的
                 return goodPortal.test(blockPos);
             }
             BlockPos below = blockPos.down();
@@ -100,21 +131,21 @@ public class EnterNetherPortalTask extends Task {
         };
 
         if (mod.getBlockScanner().anyFound(standablePortal, Blocks.NETHER_PORTAL)) {
-            setDebugState("Going to found portal");
+            setDebugState("前往找到的传送门");
             return new DoToClosestBlockTask(blockPos -> new GetToBlockTask(blockPos, false), standablePortal, Blocks.NETHER_PORTAL);
         }
 
-        //this probably isn't needed here, the check should fail everytime
+        //这里可能不需要，检查应该每次都失败
         
         if (!mod.getBlockScanner().anyFound(standablePortal, Blocks.NETHER_PORTAL)) {
-            setDebugState("Making new nether portal.");
+            setDebugState("建造新的下界传送门。");
             if (WorldHelper.getCurrentDimension() == Dimension.OVERWORLD) {
                 return new ConstructNetherPortalBucketTask();
             } else {
                 return new ConstructNetherPortalObsidianTask();
             }
         }
-        setDebugState("Getting our portal");
+        setDebugState("获取我们的传送门");
         return getPortalTask;
     }
 
@@ -138,6 +169,6 @@ public class EnterNetherPortalTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Entering nether portal";
+        return "进入下界传送门";
     }
 }

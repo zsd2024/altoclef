@@ -21,8 +21,12 @@ import net.minecraft.screen.slot.SlotActionType;
 
 import java.util.Optional;
 
+/**
+ * 使用配方书合成指定物品的任务
+ */
 public class CraftGenericWithRecipeBooksTask extends Task implements ITaskUsesCraftingGrid {
 
+    // 合成目标
     private final RecipeTarget target;
 
     public CraftGenericWithRecipeBooksTask(RecipeTarget target) {
@@ -30,116 +34,117 @@ public class CraftGenericWithRecipeBooksTask extends Task implements ITaskUsesCr
     }
 
     /**
-     * This method is called when the mod starts.
+     * 模组启动时调用此方法
      */
     @Override
     protected void onStart() {
-
+        // 任务开始时不需要特别处理
     }
 
     /**
-     * This method handles the logic for the onTick event.
-     * It checks various conditions and performs actions accordingly.
+     * 处理onTick事件的逻辑。
+     * 检查各种条件并相应地执行操作。
      *
-     * @return The next task to execute.
+     * @return 要执行的下一个任务
      */
     @Override
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Check if the big crafting UI or player inventory UI is open
+        // 检查大型合成UI或玩家背包UI是否打开
         boolean isBigCraftingOpen = StorageHelper.isBigCraftingOpen();
         boolean isPlayerInventoryOpen = StorageHelper.isPlayerInventoryOpen();
 
-        // Get the item stack in the cursor slot
+        // 获取光标槽中的物品堆叠
         ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
 
-        // Declare variables for the slots to move to and the garbage slot
+        // 声明移动到的槽位和垃圾槽的变量
         Optional<Slot> moveTo;
         Optional<Slot> garbage;
 
-        // Check if neither the big crafting UI nor the player inventory UI is open
+        // 检查大型合成UI和玩家背包UI是否都没有打开
         if (!isBigCraftingOpen && !isPlayerInventoryOpen) {
-            // Check if the cursor stack is not empty
+            // 检查光标堆叠是否不为空
             if (!cursorStack.isEmpty()) {
-                // Find a slot in the player's inventory to move the item to
+                // 在玩家背包中找到一个可以移动物品的槽位
                 moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
                 if (moveTo.isPresent()) {
-                    // Click the slot to move the item to the player's inventory
+                    // 点击槽位将物品移动到玩家背包中
                     mod.getSlotHandler().clickSlot(moveTo.get(), 0, SlotActionType.PICKUP);
                     return null;
                 }
-                // Check if the item can be thrown away
+                // 检查物品是否可以丢弃
                 if (ItemHelper.canThrowAwayStack(mod, cursorStack)) {
-                    // Click an undefined slot to throw away the item
+                    // 点击未定义槽位丢弃物品
                     mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
                     return null;
                 }
-                // Find the garbage slot and click it to move the item there
+                // 找到垃圾槽并点击它将物品移动到那里
                 garbage = StorageHelper.getGarbageSlot(mod);
                 if (garbage.isPresent()) {
                     mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                 }
-                // Click an undefined slot to clear the cursor stack
+                // 点击未定义槽位清除光标堆叠
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             } else {
-                // Close the screen
+                // 关闭界面
                 StorageHelper.closeScreen();
             }
         }
 
-        // Determine the output slot based on whether the big crafting UI is open
+        // 根据大型合成UI是否打开确定输出槽位
         Slot outputSlot = isBigCraftingOpen ? CraftingTableSlot.OUTPUT_SLOT : PlayerSlot.CRAFT_OUTPUT_SLOT;
-        // Get the item stack in the output slot
+        // 获取输出槽中的物品堆叠
         ItemStack output = StorageHelper.getItemStackInSlot(outputSlot);
 
-        // Check if the output item matches the target item and the target count has not been reached
+        // 检查输出物品是否匹配目标物品且未达到目标数量
         if (target.getOutputItem() == output.getItem() && mod.getItemStorage().getItemCount(target.getOutputItem()) < target.getTargetCount()) {
-            // Return a task to receive the crafting output slot
+            // 返回接收合成输出槽的任务
             return new ReceiveCraftingOutputSlotTask(outputSlot, target.getTargetCount());
         }
 
-        // Check if the cursor stack is not empty
+        // 检查光标堆叠是否不为空
         if (!cursorStack.isEmpty()) {
-            // Find a slot in the player's inventory to move the item to
+            // 在玩家背包中找到一个可以移动物品的槽位
             moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
             if (moveTo.isPresent()) {
-                // Click the slot to move the item to the player's inventory
+                // 点击槽位将物品移动到玩家背包中
                 mod.getSlotHandler().clickSlot(moveTo.get(), 0, SlotActionType.PICKUP);
                 return null;
             }
-            // Check if the item can be thrown away
+            // 检查物品是否可以丢弃
             if (ItemHelper.canThrowAwayStack(mod, cursorStack)) {
-                // Click an undefined slot to throw away the item
+                // 点击未定义槽位丢弃物品
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
                 return null;
             }
-            // Find the garbage slot and click it to move the item there
+            // 找到垃圾槽并点击它将物品移动到那里
             garbage = StorageHelper.getGarbageSlot(mod);
             garbage.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
-            // Click an undefined slot to clear the cursor stack
+            // 点击未定义槽位清除光标堆叠
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             return null;
         }
 
-        // Check if neither the big crafting UI nor the player inventory UI is open
+        // 检查大型合成UI和玩家背包UI是否都没有打开
         if (!isBigCraftingOpen) {
             PlayerSlot[] playerInputSlots = PlayerSlot.CRAFT_INPUT_SLOTS;
             for (PlayerSlot playerInputSlot : playerInputSlots) {
                 ItemStack playerInput = StorageHelper.getItemStackInSlot(playerInputSlot);
                 if (!playerInput.isEmpty()) {
-                    // Return a task to ensure a free player crafting grid
+                    // 返回确保玩家合成网格空闲的任务
                     return new EnsureFreePlayerCraftingGridTask();
                 }
             }
         }
 
+        // 获取要发送的配方
         Optional<WrappedRecipeEntry> recipeToSend = JankCraftingRecipeMapping.getMinecraftMappedRecipe(target.getRecipe(), target.getOutputItem());
         if (recipeToSend.isPresent()) {
             if (mod.getSlotHandler().canDoSlotAction()) {
                 ClientPlayerEntity player = MinecraftClient.getInstance().player;
                 assert player != null;
-                // Click the recipe to send it
+                // 点击发送配方
                 mod.getController().clickRecipe(player.currentScreenHandler.syncId, recipeToSend.get().asRecipe(), true);
                 mod.getSlotHandler().registerSlotAction();
             }
@@ -149,54 +154,54 @@ public class CraftGenericWithRecipeBooksTask extends Task implements ITaskUsesCr
     }
 
     /**
-     * This method is called when the task is interrupted.
+     * 任务被中断时调用此方法。
      *
-     * @param interruptTask The task that interrupted the current task.
+     * @param interruptTask 中断当前任务的任务。
      */
     @Override
     protected void onStop(Task interruptTask) {
-
+        // 任务停止时不需要特别处理
     }
 
     /**
-     * Checks if a given Task object is equal to this CraftGenericWithRecipeBooksTask object.
+     * 检查给定的Task对象是否等于此CraftGenericWithRecipeBooksTask对象。
      *
-     * @param other The Task object to compare with.
-     * @return True if the given Task is equal to this CraftGenericWithRecipeBooksTask, false otherwise.
+     * @param other 要比较的Task对象。
+     * @return 如果给定的Task等于此CraftGenericWithRecipeBooksTask，则返回true，否则返回false。
      */
     @Override
     protected boolean isEqual(Task other) {
-        // Check if the other Task is an instance of CraftGenericWithRecipeBooksTask
+        // 检查另一个Task是否是CraftGenericWithRecipeBooksTask的实例
         if (other instanceof CraftGenericWithRecipeBooksTask) {
             CraftGenericWithRecipeBooksTask task = (CraftGenericWithRecipeBooksTask) other;
 
-            // Check if the target of the other task is equal to the target of this task
+            // 检查另一个任务的目标是否等于此任务的目标
             boolean isEqual = task.target.equals(target);
 
-            // Log a message if the targets are not equal
+            // 如果目标不相等则记录消息
             if (!isEqual) {
-                Debug.logInternal("Task targets are not equal");
+                Debug.logInternal("任务目标不相等");
             }
 
-            // Return the result of the equality check
+            // 返回相等性检查的结果
             return isEqual;
         }
 
-        // Log a message if the other Task is not an instance of CraftGenericWithRecipeBooksTask
-        Debug.logInternal("Task is not an instance of CraftGenericWithRecipeBooksTask");
+        // 如果另一个Task不是CraftGenericWithRecipeBooksTask的实例则记录消息
+        Debug.logInternal("任务不是CraftGenericWithRecipeBooksTask的实例");
 
-        // Return false if the other Task is not an instance of CraftGenericWithRecipeBooksTask
+        // 如果另一个Task不是CraftGenericWithRecipeBooksTask的实例则返回false
         return false;
     }
 
     /**
-     * Returns a debug string representation of the object.
+     * 返回对象的调试字符串表示。
      *
-     * @return The debug string representation.
+     * @return 调试字符串表示。
      */
     @Override
     protected String toDebugString() {
-        // Return the debug string.
-        return getClass().getSimpleName() + " (w/ RECIPE): " + target;
+        // 返回调试字符串。
+        return getClass().getSimpleName() + " (使用配方): " + target;
     }
 }

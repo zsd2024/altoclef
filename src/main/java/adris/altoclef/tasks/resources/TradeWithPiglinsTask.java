@@ -21,14 +21,18 @@ import net.minecraft.util.Hand;
 import java.util.HashSet;
 import java.util.Optional;
 
+/**
+ * 与猪灵交易任务
+ * 用于与下界的猪灵进行以物易物，获取目标物品
+ */
 public class TradeWithPiglinsTask extends ResourceTask {
 
-    // TODO: Settings? Custom parameter?
+    // TODO: 设置? 自定义参数?
     private static final boolean AVOID_HOGLINS = true;
     private static final double HOGLIN_AVOID_TRADE_RADIUS = 64;
-    // If we're too far away from a trading piglin, we risk deloading them and losing the trade.
+    // 如果我们离交易的猪灵太远，可能会导致它们卸载并失去交易机会
     private static final double TRADING_PIGLIN_TOO_FAR_AWAY = 64 + 8;
-    private final int goldBuffer;
+    private final int goldBuffer; // 金锭缓冲数量
     private final Task tradeTask = new PerformTradeWithPiglin();
     private Task goldTask = null;
 
@@ -54,14 +58,14 @@ public class TradeWithPiglinsTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // Collect gold if we don't have it.
+        // 如果没有金锭则先收集金锭
         if (goldTask != null && goldTask.isActive() && !goldTask.isFinished()) {
-            setDebugState("Collecting gold");
+            setDebugState("收集金锭");
             return goldTask;
         }
         if (!mod.getItemStorage().hasItem(Items.GOLD_INGOT)) {
@@ -69,22 +73,22 @@ public class TradeWithPiglinsTask extends ResourceTask {
             return goldTask;
         }
 
-        // If we have no piglin nearby, explore until we find piglin.
+        // 如果附近没有猪灵，则探索直到找到猪灵
         if (!mod.getEntityTracker().entityFound(PiglinEntity.class)) {
-            setDebugState("Wandering");
+            setDebugState("徘徊寻找猪灵");
             return new TimeoutWanderTask(false);
         }
 
-        // If we have a trading piglin that's too far away, get closer to it.
+        // 如果我们有一个交易猪灵但距离太远，则靠近它
 
-        // Find gold and trade with a piglin
-        setDebugState("Trading with Piglin");
+        // 寻找金锭并与猪灵交易
+        setDebugState("与猪灵交易");
         return tradeTask;
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务停止时的清理
     }
 
     @Override
@@ -94,16 +98,20 @@ public class TradeWithPiglinsTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Trading with Piglins";
+        return "与猪灵交易";
     }
 
+    /**
+     * 执行与猪灵的交易任务
+     * 处理实际的交易逻辑
+     */
     static class PerformTradeWithPiglin extends AbstractDoToEntityTask {
 
         private static final double PIGLIN_NEARBY_RADIUS = 10;
-        private final TimerGame _barterTimeout = new TimerGame(2);
-        private final TimerGame _intervalTimeout = new TimerGame(10);
-        private final HashSet<Entity> _blacklisted = new HashSet<>();
-        private Entity _currentlyBartering = null;
+        private final TimerGame _barterTimeout = new TimerGame(2); // 交易超时计时器
+        private final TimerGame _intervalTimeout = new TimerGame(10); // 间隔超时计时器
+        private final HashSet<Entity> _blacklisted = new HashSet<>(); // 黑名单猪灵
+        private Entity _currentlyBartering = null; // 当前正在交易的实体
 
         public PerformTradeWithPiglin() {
             super(3);
@@ -116,10 +124,10 @@ public class TradeWithPiglinsTask extends ResourceTask {
 
             mod.getBehaviour().push();
 
-            // Don't throw away our gold lol
+            // 不要扔掉我们的金锭
             mod.getBehaviour().addProtectedItems(Items.GOLD_INGOT);
 
-            // Don't attack piglins unless we've blacklisted them.
+            // 除非我们已将它们列入黑名单，否则不要攻击猪灵
             mod.getBehaviour().addForceFieldExclusion(entity -> {
                 if (entity instanceof PiglinEntity) {
                     return !_blacklisted.contains(entity);
@@ -143,27 +151,27 @@ public class TradeWithPiglinsTask extends ResourceTask {
         @Override
         protected Task onEntityInteract(AltoClef mod, Entity entity) {
 
-            // If we didn't run this in a while, we can retry bartering.
+            // 如果我们很久没有执行此操作，则可以重试交易
             if (_intervalTimeout.elapsed()) {
-                // We didn't interact for a while, continue bartering as usual.
+                // 我们很久没有交互了，继续正常交易
                 _barterTimeout.reset();
                 _intervalTimeout.reset();
             }
 
-            // We're trading so reset the barter timeout
+            // 我们正在交易，所以重置交易超时
             if (EntityHelper.isTradingPiglin(_currentlyBartering)) {
                 _barterTimeout.reset();
             }
 
-            // We're bartering a new entity.
+            // 我们正在与新实体交易
             if (!entity.equals(_currentlyBartering)) {
                 _currentlyBartering = entity;
                 _barterTimeout.reset();
             }
 
             if (_barterTimeout.elapsed()) {
-                // We failed bartering.
-                Debug.logMessage("Failed bartering with current piglin, blacklisting.");
+                // 交易失败
+                Debug.logMessage("与当前猪灵交易失败，将其列入黑名单。");
                 _blacklisted.add(_currentlyBartering);
                 _barterTimeout.reset();
                 _currentlyBartering = null;
@@ -173,14 +181,14 @@ public class TradeWithPiglinsTask extends ResourceTask {
             if (AVOID_HOGLINS && _currentlyBartering != null && !EntityHelper.isTradingPiglin(_currentlyBartering)) {
                 Optional<Entity> closestHoglin = mod.getEntityTracker().getClosestEntity(_currentlyBartering.getPos(), HoglinEntity.class);
                 if (closestHoglin.isPresent() && closestHoglin.get().isInRange(entity, HOGLIN_AVOID_TRADE_RADIUS)) {
-                    Debug.logMessage("Aborting further trading because a hoglin showed up");
+                    Debug.logMessage("因为出现了疣猪兽，中止进一步交易");
                     _blacklisted.add(_currentlyBartering);
                     _barterTimeout.reset();
                     _currentlyBartering = null;
                 }
             }
 
-            setDebugState("Trading with piglin");
+            setDebugState("与猪灵交易");
 
             if (mod.getSlotHandler().forceEquipItem(Items.GOLD_INGOT)) {
                 mod.getController().interactEntity(mod.getPlayer(), entity, Hand.MAIN_HAND);
@@ -191,7 +199,7 @@ public class TradeWithPiglinsTask extends ResourceTask {
 
         @Override
         protected Optional<Entity> getEntityTarget(AltoClef mod) {
-            // Ignore trading piglins
+            // 忽略正在交易的猪灵
             Optional<Entity> found = mod.getEntityTracker().getClosestEntity(mod.getPlayer().getPos(),
                     entity -> {
                         if (_blacklisted.contains(entity)
@@ -202,7 +210,7 @@ public class TradeWithPiglinsTask extends ResourceTask {
                         }
 
                         if (AVOID_HOGLINS) {
-                            // Avoid trading if hoglin is anywhere remotely nearby.
+                            // 如果疣猪兽在附近，则避免交易
                             Optional<Entity> closestHoglin = mod.getEntityTracker().getClosestEntity(entity.getPos(), HoglinEntity.class);
                             return closestHoglin.isEmpty() || !closestHoglin.get().isInRange(entity, HOGLIN_AVOID_TRADE_RADIUS);
                         }
@@ -220,7 +228,7 @@ public class TradeWithPiglinsTask extends ResourceTask {
 
         @Override
         protected String toDebugString() {
-            return "Trading with piglin";
+            return "与猪灵交易";
         }
     }
 

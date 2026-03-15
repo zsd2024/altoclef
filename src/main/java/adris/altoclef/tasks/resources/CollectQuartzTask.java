@@ -12,9 +12,13 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.item.Items;
 
+/**
+ * 收集石英任务
+ * 用于收集下界的石英，需要前往下界挖掘下界石英矿石
+ */
 public class CollectQuartzTask extends ResourceTask {
 
-    private final int _count;
+    private final int _count; // 目标石英数量
 
     public CollectQuartzTask(int count) {
         super(Items.QUARTZ, count);
@@ -28,23 +32,23 @@ public class CollectQuartzTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
         if (WorldHelper.getCurrentDimension() != Dimension.NETHER) {
-            setDebugState("Going to nether");
+            setDebugState("前往下界");
             return new DefaultGoToDimensionTask(Dimension.NETHER);
         }
 
-        setDebugState("Mining");
+        setDebugState("挖掘");
         return new MineAndCollectTask(new ItemTarget(Items.QUARTZ, _count), new Block[]{Blocks.NETHER_QUARTZ_ORE}, MiningRequirement.WOOD);
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -54,6 +58,6 @@ public class CollectQuartzTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + _count + " quartz";
+        return "收集 " + _count + " 个石英";
     }
 }

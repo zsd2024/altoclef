@@ -9,9 +9,12 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.Arrays;
 import java.util.HashSet;
 
+/**
+ * 搜索区块中的方块任务 - 在区块中搜索指定的方块类型
+ */
 public class SearchChunkForBlockTask extends SearchChunksExploreTask {
 
-    private final HashSet<Block> _toSearchFor = new HashSet<>();
+    private final HashSet<Block> _toSearchFor = new HashSet<>(); // 要搜索的方块集合
 
     public SearchChunkForBlockTask(Block... blocks) {
         _toSearchFor.addAll(Arrays.asList(blocks));
@@ -19,6 +22,7 @@ public class SearchChunkForBlockTask extends SearchChunksExploreTask {
 
     @Override
     protected boolean isChunkWithinSearchSpace(AltoClef mod, ChunkPos pos) {
+        // 扫描区块以查找指定方块
         return mod.getChunkTracker().scanChunk(pos, block -> {
                     return _toSearchFor.contains(mod.getWorld().getBlockState(block).getBlock());
                 }
@@ -35,6 +39,6 @@ public class SearchChunkForBlockTask extends SearchChunksExploreTask {
 
     @Override
     protected String toDebugString() {
-        return "Searching chunk for blocks " + ArrayUtils.toString(_toSearchFor.toArray(Block[]::new));
+        return "搜索区块中的方块 " + ArrayUtils.toString(_toSearchFor.toArray(Block[]::new));
     }
 }

@@ -11,12 +11,16 @@ import net.minecraft.item.Item;
 
 import java.util.Arrays;
 
+/**
+ * 按个收集方块任务
+ * 用于逐个收集特定类型的方块，每次只收集一个单位以避免一次性挖掘过多
+ */
 public class CollectBlockByOneTask extends ResourceTask {
 
-    private final Item item;
-    private final Block[] blocks;
-    private final MiningRequirement requirement;
-    private final int count;
+    private final Item item; // 目标物品
+    private final Block[] blocks; // 可挖掘的方块数组
+    private final MiningRequirement requirement; // 挖掘要求
+    private final int count; // 目标数量
 
     public CollectBlockByOneTask(Item item, Block[] blocks, MiningRequirement requirement, int targetCount) {
         super(item, targetCount);
@@ -33,17 +37,18 @@ public class CollectBlockByOneTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
+        // 每次只挖掘1个方块，避免一次性挖掘过多
         return new MineAndCollectTask(item, 1, blocks, requirement);
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务停止时的清理
     }
 
     @Override
@@ -56,10 +61,14 @@ public class CollectBlockByOneTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collect "+item;
+        return "收集 "+item;
     }
 
 
+    /**
+     * 收集圆石任务
+     * 用于收集圆石，可通过挖掘石头或现有圆石获得
+     */
     public static class CollectCobblestoneTask extends CollectBlockByOneTask {
 
         public CollectCobblestoneTask(int targetCount) {
@@ -67,6 +76,10 @@ public class CollectBlockByOneTask extends ResourceTask {
         }
     }
 
+    /**
+     * 收集深板岩圆石任务
+     * 用于收集深板岩圆石，可通过挖掘深板岩或现有深板岩圆石获得
+     */
     public static class CollectCobbledDeepslateTask extends CollectBlockByOneTask {
 
         public CollectCobbledDeepslateTask(int targetCount) {
@@ -74,6 +87,10 @@ public class CollectBlockByOneTask extends ResourceTask {
         }
     }
 
+    /**
+     * 收集末地石任务
+     * 用于收集末地石，只能通过挖掘末地石获得
+     */
     public static class CollectEndStoneTask extends CollectBlockByOneTask {
 
         public CollectEndStoneTask(int targetCount) {

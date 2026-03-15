@@ -11,6 +11,10 @@ import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 
+/**
+ * 剪切并收集方块任务
+ * 用于使用剪刀剪切方块并收集掉落物品（如树叶、羊毛等）
+ */
 public class ShearAndCollectBlockTask extends MineAndCollectTask {
 
     public ShearAndCollectBlockTask(ItemTarget[] itemTargets, Block... blocksToMine) {
@@ -30,6 +34,7 @@ public class ShearAndCollectBlockTask extends MineAndCollectTask {
         BotBehaviour botBehaviour = AltoClef.getInstance().getBehaviour();
 
         botBehaviour.push();
+        // 强制使用剪刀工具来剪切可剪切的方块
         botBehaviour.forceUseTool((blockState, itemStack) ->
                 itemStack.getItem() == Items.SHEARS && ItemHelper.areShearsEffective(blockState.getBlock())
         );
@@ -44,6 +49,7 @@ public class ShearAndCollectBlockTask extends MineAndCollectTask {
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
+        // 检查是否有剪刀，如果没有则先获取剪刀
         if (!mod.getItemStorage().hasItem(Items.SHEARS)) {
             return TaskCatalogue.getItemTask(Items.SHEARS, 1);
         }

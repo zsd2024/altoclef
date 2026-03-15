@@ -11,14 +11,18 @@ import adris.altoclef.util.helpers.ItemHelper;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 
+/**
+ * 收集床任务
+ * 用于制作床，需要羊毛和木板
+ */
 public class CollectBedTask extends CraftWithMatchingWoolTask {
 
-    public static final Block[] BEDS = ItemHelper.itemsToBlocks(ItemHelper.BED);
+    public static final Block[] BEDS = ItemHelper.itemsToBlocks(ItemHelper.BED); // 床方块数组
 
-    private final ItemTarget visualBedTarget;
+    private final ItemTarget visualBedTarget; // 可视化床目标
 
     public CollectBedTask(Item[] beds, ItemTarget wool, int count) {
-        // Top 3 are wool, must be the same.
+        // 上面3个是羊毛，必须是相同的颜色
         super(new ItemTarget(beds, count), colorfulItems -> colorfulItems.wool, colorfulItems -> colorfulItems.bed, createBedRecipe(wool), new boolean[]{true, true, true, false, false, false, false, false, false});
         visualBedTarget = new ItemTarget(beds, count);
     }
@@ -31,6 +35,11 @@ public class CollectBedTask extends CraftWithMatchingWoolTask {
         this(ItemHelper.BED, TaskCatalogue.getItemTarget("wool", 1), count);
     }
 
+    /**
+     * 创建床的合成配方
+     * @param wool 羊毛目标
+     * @return 床的合成配方
+     */
     private static CraftingRecipe createBedRecipe(ItemTarget wool) {
         ItemTarget w = wool;
         ItemTarget p = TaskCatalogue.getItemTarget("planks", 1);
@@ -45,9 +54,9 @@ public class CollectBedTask extends CraftWithMatchingWoolTask {
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // Break beds from the world if possible, that would be pretty fast.
+        // 如果可能，从世界中破坏床，这样会比较快
         if (mod.getBlockScanner().anyFound(BEDS)) {
-            // Failure + blacklisting is encapsulated within THIS task
+            // 失败+黑名单封装在此任务中
             return new MineAndCollectTask(new ItemTarget(ItemHelper.BED, 1), BEDS, MiningRequirement.HAND);
         }
         return super.onResourceTick(mod);
@@ -63,6 +72,6 @@ public class CollectBedTask extends CraftWithMatchingWoolTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Crafting bed: " + visualBedTarget;
+        return "制作床: " + visualBedTarget;
     }
 }

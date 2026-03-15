@@ -19,15 +19,15 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * mines a specific block for item
+ * 挖掘方块优先级任务 - 为获取特定物品而挖掘指定方块
  */
 public class MineBlockPriorityTask extends PriorityTask{
 
-    public final Block[] toMine;
-    public final Item[] droppedItem;
-    public final ItemTarget[] droppedItemTargets;
-    private final MiningRequirement miningRequirement;
-    private final DistancePriorityCalculator prioritySupplier;
+    public final Block[] toMine; // 要挖掘的方块
+    public final Item[] droppedItem; // 掉落物品
+    public final ItemTarget[] droppedItemTargets; // 掉落物品目标
+    private final MiningRequirement miningRequirement; // 挖掘需求
+    private final DistancePriorityCalculator prioritySupplier; // 优先级提供器
 
     public MineBlockPriorityTask(Block[] toMine, Item[] droppedItem, MiningRequirement miningRequirement, DistancePriorityCalculator prioritySupplier) {
         this(toMine, droppedItem, miningRequirement, prioritySupplier, false, true, false);
@@ -57,7 +57,7 @@ public class MineBlockPriorityTask extends PriorityTask{
 
     @Override
     public String getDebugString() {
-        return "Gathering resource: "+ Arrays.toString(droppedItem);
+        return "收集资源: "+ Arrays.toString(droppedItem);
     }
 
     @Override
@@ -72,6 +72,11 @@ public class MineBlockPriorityTask extends PriorityTask{
     }
 
 
+    /**
+     * 获取最近距离
+     * @param mod AltoClef实例
+     * @return 最近距离
+     */
     private double getClosestDist(AltoClef mod) {
         Vec3d pos = mod.getPlayer().getPos();
 

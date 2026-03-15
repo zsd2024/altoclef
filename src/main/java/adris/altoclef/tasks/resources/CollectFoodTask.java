@@ -39,10 +39,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+/**
+ * 收集食物任务
+ * 用于收集各种食物，包括击杀动物、收集作物、拾取现成食物等
+ */
 public class CollectFoodTask extends Task {
 
 
-    // Represents order of preferred mobs to least preferred
+    // 表示优先级从高到低的可烹饪食物列表
     public static final CookableFoodTarget[] COOKABLE_FOODS = new CookableFoodTarget[]{
             new CookableFoodTarget("beef", CowEntity.class),
             new CookableFoodTarget("porkchop", PigEntity.class),
@@ -51,6 +55,7 @@ public class CollectFoodTask extends Task {
             new CookableFoodTarget("rabbit", RabbitEntity.class)
     };
 
+    // 可拾取的食物物品列表
     public static final Item[] ITEMS_TO_PICK_UP = new Item[]{
             Items.ENCHANTED_GOLDEN_APPLE,
             Items.GOLDEN_APPLE,
@@ -59,20 +64,26 @@ public class CollectFoodTask extends Task {
             Items.BAKED_POTATO
     };
 
+    // 作物目标列表
     public static final CropTarget[] CROPS = new CropTarget[]{
             new CropTarget(Items.WHEAT, Blocks.WHEAT),
             new CropTarget(Items.CARROT, Blocks.CARROTS)
     };
 
-    private final double unitsNeeded;
-    private final TimerGame checkNewOptionsTimer = new TimerGame(10);
-    private final SmeltInSmokerTask smeltTask = null;
-    private Task currentResourceTask = null;
+    private final double unitsNeeded; // 需要的食物单位数量
+    private final TimerGame checkNewOptionsTimer = new TimerGame(10); // 检查新选项的计时器
+    private final SmeltInSmokerTask smeltTask = null; // 烟熏炉熔炼任务
+    private Task currentResourceTask = null; // 当前资源任务
 
     public CollectFoodTask(double unitsNeeded) {
         this.unitsNeeded = unitsNeeded;
     }
 
+    /**
+     * 计算物品的食物潜力值
+     * @param food 食物物品堆栈
+     * @return 食物潜力值
+     */
     private static double getFoodPotential(ItemStack food) {
         if (food == null) return 0;
         int count = food.getCount();
@@ -84,7 +95,7 @@ public class CollectFoodTask extends Task {
             }
         }
 
-        //bread logic
+        //面包逻辑
         assert ItemVer.getFoodComponent( Items.BREAD) != null;
 
         if (food.getItem().equals(Items.HAY_BLOCK)) {
@@ -94,7 +105,7 @@ public class CollectFoodTask extends Task {
             return (double) (ItemVer.getFoodComponent(Items.BREAD).getHunger() * count) /3;
         }
 
-        // We're just an ordinary item.
+        // 我们只是一个普通物品
         if (ItemVer.isFood(food.getItem())) {
             assert ItemVer.getFoodComponent(food.getItem()) != null;
             return count * ItemVer.getFoodComponent(food.getItem()).getHunger();
@@ -102,7 +113,11 @@ public class CollectFoodTask extends Task {
         return 0;
     }
 
-    // Gets the units of food if we were to convert all of our raw resources to food.
+    /**
+     * 计算如果将所有原材料转换为食物后的食物单位数
+     * @param mod AltoClef实例
+     * @return 食物潜力值
+     */
     @SuppressWarnings("RedundantCast")
     public static double calculateFoodPotential(AltoClef mod) {
         double potentialFood = 0;
@@ -111,7 +126,7 @@ public class CollectFoodTask extends Task {
         }
         int potentialBread = (int) (mod.getItemStorage().getItemCount(Items.WHEAT) / 3) + mod.getItemStorage().getItemCount(Items.HAY_BLOCK) * 3;
         potentialFood += Objects.requireNonNull(ItemVer.getFoodComponent( Items.BREAD)).getHunger() * potentialBread;
-        // Check smelting
+        // 检查熔炼
         ScreenHandler screen = mod.getPlayer().currentScreenHandler;
         if (screen instanceof SmokerScreenHandler) {
             potentialFood += getFoodPotential(StorageHelper.getItemStackInSlot(SmokerSlot.INPUT_SLOT_MATERIALS));
@@ -125,10 +140,10 @@ public class CollectFoodTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         mod.getBehaviour().push();
-        // Protect ALL food
+        // 保护所有食物
         mod.getBehaviour().addProtectedItems(ITEMS_TO_PICK_UP);
 
-        // Allow us to consume food.
+        // 允许我们消耗食物
         /*
         for (CookableFoodTarget food : COOKABLE_FOODS)
             mod.getBehaviour().addProtectedItems(food.getRaw(), food.getCooked());
@@ -152,15 +167,15 @@ public class CollectFoodTask extends Task {
                 mod.getBlockScanner().requestBlockUnreachable(HaysPos, 0);
             }
         }
-        // If we were previously smelting, keep on smelting.
+        // 如果我们之前正在熔炼，继续熔炼
         if (smeltTask != null && smeltTask.isActive() && !smeltTask.isFinished()) {
-            // TODO: If we don't have cooking materials, cancel.
-            setDebugState("Cooking...");
+            // TODO: 如果我们没有烹饪材料，取消
+            setDebugState("烹饪中...");
             return smeltTask;
         }
 
         if (checkNewOptionsTimer.elapsed()) {
-            // Try a new resource task
+            // 尝试新的资源任务
             checkNewOptionsTimer.reset();
             currentResourceTask = null;
         }
@@ -169,17 +184,17 @@ public class CollectFoodTask extends Task {
             return currentResourceTask;
         }
 
-        // Calculate potential
+        // 计算潜力
         double potentialFood = calculateFoodPotential(mod);
         if (potentialFood >= unitsNeeded) {
-            // Convert our raw foods
-            // PLAN:
-            // - If we have hay/wheat, make it into bread
-            // - If we have raw foods, smelt all of them
+            // 转换我们的原材料
+            // 计划:
+            // - 如果我们有干草/小麦，将其制成面包
+            // - 如果我们有生食，将它们全部熔炼
 
-            // Convert Hay+Wheat -> Bread
+            // 转换干草+小麦 -> 面包
             if (mod.getItemStorage().getItemCount(Items.WHEAT) >= 3) {
-                setDebugState("Crafting Bread");
+                setDebugState("制作面包");
                 Item[] w = new Item[]{Items.WHEAT};
                 Item[] o = null;
                 // jank
@@ -187,12 +202,12 @@ public class CollectFoodTask extends Task {
                 return currentResourceTask;
             }
             if (mod.getItemStorage().getItemCount(Items.HAY_BLOCK) >= 1) {
-                setDebugState("Crafting Wheat");
+                setDebugState("制作小麦");
                 Item[] o = null;
                 currentResourceTask = new CraftInInventoryTask(new RecipeTarget(Items.WHEAT, 99999999, CraftingRecipe.newShapedRecipe("wheat", new Item[][]{new Item[]{Items.HAY_BLOCK}, o, o, o}, 9)), false, false);
                 return currentResourceTask;
             }
-            // Convert raw foods -> cooked foods
+            // 转换生食 -> 熟食
 
             /*for (CookableFoodTarget cookable : COOKABLE_FOODS) {
                 int rawCount = mod.getItemStorage().getItemCount(cookable.getRaw());
@@ -205,61 +220,61 @@ public class CollectFoodTask extends Task {
                 }
             }*/
         } else {
-            // Pick up food items from ground
+            // 从地面上拾取食物
             for (Item item : ITEMS_TO_PICK_UP) {
                 Task t = this.pickupTaskOrNull(mod, item);
                 if (t != null) {
-                    setDebugState("Picking up Food: " + item.getTranslationKey());
+                    setDebugState("拾取食物: " + item.getTranslationKey());
                     currentResourceTask = t;
                     return currentResourceTask;
                 }
             }
-            // Pick up raw/cooked foods on ground
+            // 拾取地面上的生/熟食
             for (CookableFoodTarget cookable : COOKABLE_FOODS) {
                 Task t = this.pickupTaskOrNull(mod, cookable.getRaw(), 20);
                 if (t == null) t = this.pickupTaskOrNull(mod, cookable.getCooked(), 40);
                 if (t != null) {
-                    setDebugState("Picking up Cookable food");
+                    setDebugState("拾取可烹饪食物");
                     currentResourceTask = t;
                     return currentResourceTask;
                 }
             }
-            // Hay blocks
+            // 干草块
             Task hayTaskBlock = this.pickupBlockTaskOrNull(mod, Blocks.HAY_BLOCK, Items.HAY_BLOCK, 300);
             if (hayTaskBlock != null) {
-                setDebugState("Collecting Hay");
+                setDebugState("收集干草");
                 currentResourceTask = hayTaskBlock;
                 return currentResourceTask;
             }
-            // Crops
+            // 作物
             for (CropTarget target : CROPS) {
-                // If crops are nearby. Do not replant cause we don't care.
+                // 如果附近有作物。不重新种植，因为我们不关心
                 Task t = pickupBlockTaskOrNull(mod, target.cropBlock, target.cropItem, (blockPos -> {
                     BlockState s = mod.getWorld().getBlockState(blockPos);
                     Block b = s.getBlock();
                     if (b instanceof CropBlock) {
                         boolean isWheat = !(b instanceof PotatoesBlock || b instanceof CarrotsBlock || b instanceof BeetrootsBlock);
                         if (isWheat) {
-                            // Chunk needs to be loaded for wheat maturity to be checked.
+                            // 检查小麦成熟度需要加载区块
                             if (!mod.getChunkTracker().isChunkLoaded(blockPos)) {
                                 return false;
                             }
-                            // Prune if we're not mature/fully grown wheat.
+                            // 如果不是成熟/完全生长的小麦，则修剪
                             CropBlock crop = (CropBlock) b;
                             return crop.isMature(s);
                         }
                     }
-                    // Unbreakable.
+                    // 不可破坏
                     return WorldHelper.canBreak(blockPos);
-                    // We're not wheat so do NOT reject.
+                    // 我们不是小麦所以不要拒绝
                 }), 96);
                 if (t != null) {
-                    setDebugState("Harvesting " + target.cropItem.getTranslationKey());
+                    setDebugState("收获 " + target.cropItem.getTranslationKey());
                     currentResourceTask = t;
                     return currentResourceTask;
                 }
             }
-            // Cooked foods
+            // 熟食
             double bestScore = 0;
             Entity bestEntity = null;
             Item bestRawFood = null;
@@ -268,7 +283,7 @@ public class CollectFoodTask extends Task {
             for (CookableFoodTarget cookable : COOKABLE_FOODS) {
                 if (!mod.getEntityTracker().entityFound(cookable.mobToKill)) continue;
                 Optional<Entity> nearest = mod.getEntityTracker().getClosestEntity(mod.getPlayer().getPos(),notBaby ,cookable.mobToKill);
-                if (nearest.isEmpty()) continue; // ?? This crashed once?
+                if (nearest.isEmpty()) continue; // ?? 这次崩溃了一次？
                 int hungerPerformance = cookable.getCookedUnits();
                 double sqDistance = nearest.get().squaredDistanceTo(mod.getPlayer());
                 double score = (double) 100 * hungerPerformance / (sqDistance);
@@ -282,25 +297,29 @@ public class CollectFoodTask extends Task {
                 }
             }
             if (bestEntity != null) {
-                setDebugState("Killing " + bestEntity.getType().getTranslationKey());
+                setDebugState("击杀 " + bestEntity.getType().getTranslationKey());
                 currentResourceTask = killTaskOrNull(bestEntity, notBaby, bestRawFood);
                 return currentResourceTask;
             }
 
-            // Sweet berries (separate from crops because they should have a lower priority than everything else cause they suck)
+            // 甜浆果（与作物分开因为它们的优先级应该比其他所有东西都低，因为它们很烂）
             Task berryPickup = pickupBlockTaskOrNull(mod, Blocks.SWEET_BERRY_BUSH, Items.SWEET_BERRIES, 96);
             if (berryPickup != null) {
-                setDebugState("Getting sweet berries (no better foods are present)");
+                setDebugState("获取甜浆果（没有更好的食物了）");
                 currentResourceTask = berryPickup;
                 return currentResourceTask;
             }
         }
 
-        // Look for food.
-        setDebugState("Searching...");
+        // 寻找食物
+        setDebugState("搜索中...");
         return new TimeoutWanderTask();
     }
 
+    /**
+     * 将鸡骑士列入黑名单（鸡骑着敌对生物）
+     * @param mod AltoClef实例
+     */
     static void blackListChickenJockeys(AltoClef mod) {
         if (mod.getEntityTracker().entityFound(ChickenEntity.class)) {
             Optional<Entity> chickens = mod.getEntityTracker().getClosestEntity(ChickenEntity.class);
@@ -310,7 +329,7 @@ public class CollectFoodTask extends Task {
                     if (entity instanceof HostileEntity || entity instanceof SlimeEntity) {
                         if (chickens.get().hasPassenger(entity)) {
                             if (mod.getEntityTracker().isEntityReachable(entity)) {
-                                Debug.logMessage("Blacklisting chicken jockey.");
+                                Debug.logMessage("将鸡骑士列入黑名单。");
                                 mod.getEntityTracker().requestEntityUnreachable(chickens.get());
                             }
                         }
@@ -340,12 +359,12 @@ public class CollectFoodTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Collect " + unitsNeeded + " units of food.";
+        return "收集 " + unitsNeeded + " 单位食物。";
     }
 
     /**
-     * Returns a task that mines a block and picks up its output.
-     * Returns null if task cannot reasonably run.
+     * 返回一个挖掘方块并拾取其产出的的任务
+     * 如果任务无法合理运行则返回null
      */
     private Task pickupBlockTaskOrNull(AltoClef mod, Block blockToCheck, Item itemToGrab, Predicate<BlockPos> accept, double maxRange) {
         Predicate<BlockPos> acceptPlus = (blockPos) -> {
@@ -382,8 +401,8 @@ public class CollectFoodTask extends Task {
     }
 
     /**
-     * Returns a task that picks up a dropped item.
-     * Returns null if task cannot reasonably run.
+     * 返回一个拾取掉落物品的任务
+     * 如果任务无法合理运行则返回null
      */
     private Task pickupTaskOrNull(AltoClef mod, Item itemToGrab, double maxRange) {
         Optional<ItemEntity> nearestDrop = Optional.empty();
@@ -395,12 +414,12 @@ public class CollectFoodTask extends Task {
                 if (mod.getItemStorage().getSlotsThatCanFitInPlayerInventory(nearestDrop.get().getStack(), false).isEmpty()) {
                     Optional<Slot> slot = StorageHelper.getGarbageSlot(mod);
 
-                    // tf am I supposed to do if its empty
+                    // 如果它是空的我该怎么办
                     if (slot.isPresent()) {
                         ItemStack stack = StorageHelper.getItemStackInSlot(slot.get());
                         if (ItemVer.isFood(stack.getItem())) {
-                            // calculate priority, if the item laying on the ground has lower priority than the one we are gonna throw out because of it
-                            // dont pick it up, otherwise we would get stuck in an infinite loop
+                            // 计算优先级，如果地面上的物品优先级低于我们因它而要扔掉的物品
+                            // 不要拾取它，否则我们会陷入无限循环
                             int inventoryCost = ItemVer.getFoodComponent(stack.getItem()).getHunger() * stack.getCount();
 
                             double hunger = 0;
@@ -409,7 +428,7 @@ public class CollectFoodTask extends Task {
                             } else if (itemToGrab.equals(Items.WHEAT)) {
                                 hunger += ItemVer.getFoodComponent(Items.BREAD).getHunger()/3d;
                             } else {
-                                mod.log("unknown food item: "+itemToGrab);
+                                mod.log("未知食物物品: "+itemToGrab);
                             }
                             int groundCost = (int) (hunger * nearestDrop.get().getStack().getCount());
 
@@ -427,11 +446,15 @@ public class CollectFoodTask extends Task {
         return pickupTaskOrNull(mod, itemToGrab, Double.POSITIVE_INFINITY);
     }
 
+    /**
+     * 可烹饪食物目标类
+     * 定义了可以用来制作熟食的生食
+     */
     @SuppressWarnings("rawtypes")
     public static class CookableFoodTarget {
-        public String rawFood;
-        public String cookedFood;
-        public Class mobToKill;
+        public String rawFood; // 生食名称
+        public String cookedFood; // 熟食名称
+        public Class mobToKill; // 需要击杀的生物类型
 
         public CookableFoodTarget(String rawFood, String cookedFood, Class mobToKill) {
             this.rawFood = rawFood;
@@ -461,6 +484,10 @@ public class CollectFoodTask extends Task {
         }
     }
 
+    /**
+     * 可烹饪鱼类食物目标类
+     * 继承自CookableFoodTarget，专门用于鱼类
+     */
     @SuppressWarnings("rawtypes")
     private static class CookableFoodTargetFish extends CookableFoodTarget {
 
@@ -474,9 +501,13 @@ public class CollectFoodTask extends Task {
         }
     }
 
+    /**
+     * 作物目标类
+     * 定义了可收获的作物
+     */
     public static class CropTarget {
-        public Item cropItem;
-        public Block cropBlock;
+        public Item cropItem; // 作物物品
+        public Block cropBlock; // 作物方块
 
         public CropTarget(Item cropItem, Block cropBlock) {
             this.cropItem = cropItem;

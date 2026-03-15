@@ -31,29 +31,45 @@ import java.util.Arrays;
 import java.util.function.Predicate;
 
 /**
- * Place a type of block nearby, anywhere.
+ * 在附近任意位置放置方块的任务
  * <p>
- * Also known as the "bear strats" task.
+ * 也被称为"熊策略"任务。
  */
 public class PlaceBlockNearbyTask extends Task {
 
+    // 要放置的方块数组
     private final Block[] toPlace;
 
+    // 移动进度检查器
     private final MovementProgressChecker progressChecker = new MovementProgressChecker();
+    // 超时徘徊任务
     private final TimeoutWanderTask wander = new TimeoutWanderTask(5);
 
+    // 随机视角计时器
     private final TimerGame _randomlookTimer = new TimerGame(0.25);
+    // 判断位置是否可以放置方块的谓词
     private final Predicate<BlockPos> _canPlaceHere;
-    private BlockPos justPlaced; // Where we JUST placed a block.
-    private BlockPos tryPlace;   // Where we should TRY placing a block.
-    // Oof, necesarry for the onBlockPlaced action.
+    // 刚刚放置方块的位置
+    private BlockPos justPlaced;
+    // 尝试放置方块的位置
+    private BlockPos tryPlace;
+    // 用于处理方块放置事件的订阅
     private Subscription<BlockPlaceEvent> _onBlockPlaced;
 
+    /**
+     * 构造函数
+     * @param canPlaceHere 用于判断位置是否可以放置方块的谓词
+     * @param toPlace 要放置的方块
+     */
     public PlaceBlockNearbyTask(Predicate<BlockPos> canPlaceHere, Block... toPlace) {
         this.toPlace = toPlace;
         _canPlaceHere = canPlaceHere;
     }
 
+    /**
+     * 构造函数（默认任何地方都可以放置）
+     * @param toPlace 要放置的方块
+     */
     public PlaceBlockNearbyTask(Block... toPlace) {
         this(blockPos -> true, toPlace);
     }
@@ -63,7 +79,7 @@ public class PlaceBlockNearbyTask extends Task {
         progressChecker.reset();
         AltoClef.getInstance().getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, false);
 
-        // Check for blocks being placed
+        // 订阅方块放置事件，以检测何时放置了方块
         _onBlockPlaced = EventBus.subscribe(BlockPlaceEvent.class, evt -> {
             if (ArrayUtils.contains(toPlace, evt.blockState.getBlock())) {
                 stopPlacing();
@@ -78,14 +94,14 @@ public class PlaceBlockNearbyTask extends Task {
         if (mod.getClientBaritone().getPathingBehavior().isPathing()) {
             progressChecker.reset();
         }
-        // Method:
-        // - If looking at placable block
-        //      Place immediately
-        // Find a spot to place
-        // - Prefer flat areas (open space, block below) closest to player
+        // 方法：
+        // - 如果正看着可放置方块
+        //      立即放置
+        // 找一个放置点
+        // - 优先选择平坦区域（开放空间，下方有方块）离玩家最近的位置
         // -
 
-        // Close screen first
+        // 首先关闭界面
         ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
         if (!cursorStack.isEmpty()) {
            /* Optional<Slot> moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
@@ -98,7 +114,7 @@ public class PlaceBlockNearbyTask extends Task {
                 return null;
             }
             Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-            // Try throwing away cursor slot if it's garbage
+            // 如果光标槽是垃圾，则尝试丢弃
             if (garbage.isPresent()) {
                 mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                 return null;
@@ -108,10 +124,10 @@ public class PlaceBlockNearbyTask extends Task {
             StorageHelper.closeScreen();
         }
 
-        // Try placing where we're looking right now.
+        // 尝试在我们当前看的位置放置
         BlockPos current = getCurrentlyLookingBlockPlace(mod);
         if (current != null && _canPlaceHere.test(current)) {
-            setDebugState("Placing since we can...");
+            setDebugState("因为可以放置所以放置...");
             if (mod.getSlotHandler().forceEquipItem(ItemHelper.blocksToItems(toPlace))) {
                 if (place(mod, current)) {
                     return null;
@@ -119,15 +135,15 @@ public class PlaceBlockNearbyTask extends Task {
             }
         }
 
-        // Wander while we can.
+        // 在可能的情况下徘徊
         if (wander.isActive() && !wander.isFinished()) {
-            setDebugState("Wandering, will try to place again later.");
+            setDebugState("徘徊中，稍后再次尝试放置。");
             progressChecker.reset();
             return wander;
         }
-        // Fail check
+        // 失败检查
         if (!progressChecker.check(mod)) {
-            Debug.logMessage("Failed placing, wandering and trying again.");
+            Debug.logMessage("放置失败，徘徊并重试。");
             LookHelper.randomOrientation();
             if (tryPlace != null) {
                 mod.getBlockScanner().requestBlockUnreachable(tryPlace);
@@ -136,23 +152,23 @@ public class PlaceBlockNearbyTask extends Task {
             return wander;
         }
 
-        // Try to place at a particular spot.
+        // 尝试在特定位置放置
         if (tryPlace == null || !WorldHelper.canReach(tryPlace)) {
             tryPlace = locateClosePlacePos(mod);
         }
         if (tryPlace != null) {
-            setDebugState("Trying to place at " + tryPlace);
+            setDebugState("尝试在 " + tryPlace + " 放置");
             justPlaced = tryPlace;
             return new PlaceBlockTask(tryPlace, toPlace);
         }
 
-        // Look in random places to maybe get a random hit
+        // 向随机方向看，可能获得随机放置机会
         if (_randomlookTimer.elapsed()) {
             _randomlookTimer.reset();
             LookHelper.randomOrientation();
         }
 
-        setDebugState("Wandering until we randomly place or find a good place spot.");
+        setDebugState("徘徊直到随机放置或找到好的放置位置。");
         return new TimeoutWanderTask();
     }
 
@@ -165,6 +181,7 @@ public class PlaceBlockNearbyTask extends Task {
     @Override
     protected boolean isEqual(Task other) {
         if (other instanceof PlaceBlockNearbyTask task) {
+            // 比较要放置的方块数组是否相等
             return Arrays.equals(task.toPlace, toPlace);
         }
         return false;
@@ -172,18 +189,28 @@ public class PlaceBlockNearbyTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Place " + Arrays.toString(toPlace) + " nearby";
+        return "在附近放置 " + Arrays.toString(toPlace);
     }
 
     @Override
     public boolean isFinished() {
+        // 检查是否已经放置了方块且放置的方块是我们想要的类型
         return justPlaced != null && ArrayUtils.contains(toPlace, AltoClef.getInstance().getWorld().getBlockState(justPlaced).getBlock());
     }
 
+    /**
+     * 获取刚刚放置的方块位置
+     * @return 已放置方块的位置
+     */
     public BlockPos getPlaced() {
         return justPlaced;
     }
 
+    /**
+     * 获取当前视线方向上可以放置方块的位置
+     * @param mod AltoClef主模块实例
+     * @return 可放置方块的位置，如果无法放置则返回null
+     */
     private BlockPos getCurrentlyLookingBlockPlace(AltoClef mod) {
         HitResult hit = MinecraftClient.getInstance().crosshairTarget;
         if (hit instanceof BlockHitResult bhit) {
@@ -192,7 +219,7 @@ public class PlaceBlockNearbyTask extends Task {
             IPlayerContext ctx = mod.getClientBaritone().getPlayerContext();
             if (MovementHelper.canPlaceAgainst(ctx, bpos)) {
                 BlockPos placePos = bhit.getBlockPos().add(bhit.getSide().getVector());
-                // Don't place inside the player.
+                // 不要在玩家内部放置。
                 if (WorldHelper.isInsidePlayer(placePos)) {
                     return null;
                 }
@@ -205,18 +232,28 @@ public class PlaceBlockNearbyTask extends Task {
         return null;
     }
 
+    /**
+     * 检查是否已装备了要放置的方块
+     * @return 是否已装备目标方块
+     */
     private boolean blockEquipped() {
         return StorageHelper.isEquipped(ItemHelper.blocksToItems(toPlace));
     }
 
+/**
+     * 在指定位置放置方块
+     * @param mod AltoClef主模块实例
+     * @param targetPlace 目标放置位置
+     * @return 放置是否成功
+     */
     private boolean place(AltoClef mod, BlockPos targetPlace) {
         if (!mod.getExtraBaritoneSettings().isInteractionPaused() && blockEquipped()) {
-            // Shift click just for 100% container security.
+            // 潜行点击，以确保容器安全。
             mod.getInputControls().hold(Input.SNEAK);
 
             //mod.getInputControls().tryPress(Input.CLICK_RIGHT);
-            // This appears to work on servers...
-            // TODO: Helper lol
+            // 这在服务器上似乎有效...
+            // TODO: 帮助函数
             HitResult mouseOver = MinecraftClient.getInstance().crosshairTarget;
             if (mouseOver == null || mouseOver.getType() != HitResult.Type.BLOCK) {
                 return false;
@@ -227,24 +264,30 @@ public class PlaceBlockNearbyTask extends Task {
                     mod.getPlayer().isSneaking()) {
                 mod.getPlayer().swingHand(hand);
                 justPlaced = targetPlace;
-                Debug.logMessage("PRESSED");
+                Debug.logMessage("已按下");
                 return true;
             }
 
-            //mod.getControllerExtras().mouseClickOverride(1, true);
-            //mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, true);
+            //mod.getControllerExtras().mouseClickOverride(1, false);
+            // 呃，这些有时会导致问题，所以这是一种临时修复方法。
+            AltoClef.getInstance().getClientBaritone().getBuilderProcess().onLostControl();
             return true;
         }
-        return false;
+return false;
     }
 
     private void stopPlacing() {
         AltoClef.getInstance().getInputControls().release(Input.SNEAK);
         //mod.getControllerExtras().mouseClickOverride(1, false);
-        // Oof, these sometimes cause issues so this is a bit of a duct tape fix.
+        // 呃，这些有时会导致问题，所以这是一种临时修复方法。
         AltoClef.getInstance().getClientBaritone().getBuilderProcess().onLostControl();
     }
 
+    /**
+     * 寻找最近的可放置位置
+     * @param mod AltoClef主模块实例
+     * @return 最佳的放置位置，如果没有找到则返回null
+     */
     private BlockPos locateClosePlacePos(AltoClef mod) {
         int range = 7;
         BlockPos best = null;
@@ -254,21 +297,22 @@ public class PlaceBlockNearbyTask extends Task {
         for (BlockPos blockPos : WorldHelper.scanRegion(start, end)) {
             boolean solid = WorldHelper.isSolidBlock(blockPos);
             boolean inside = WorldHelper.isInsidePlayer(blockPos);
-            // We can't break this block.
+            // 我们不能破坏这个方块。
             if (solid && !WorldHelper.canBreak(blockPos)) {
                 continue;
             }
-            // We can't place here as defined by user.
+            // 用户定义的不能在此放置。
             if (!_canPlaceHere.test(blockPos)) {
                 continue;
             }
-            // We can't place here.
+            // 我们不能在此放置。
             if (!WorldHelper.canReach(blockPos) || !WorldHelper.canPlace(blockPos)) {
                 continue;
             }
             boolean hasBelow = WorldHelper.isSolidBlock(blockPos.down());
             double distSq = BlockPosVer.getSquaredDistance(blockPos,mod.getPlayer().getPos());
 
+            // 计算放置位置的评分，距离越近、下方有方块、不是实体内部的得分越高
             double score = distSq + (solid ? 4 : 0) + (hasBelow ? 0 : 10) + (inside ? 3 : 0);
 
             if (score < smallestScore) {

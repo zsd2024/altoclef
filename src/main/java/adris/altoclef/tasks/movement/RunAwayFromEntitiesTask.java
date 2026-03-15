@@ -8,14 +8,17 @@ import net.minecraft.entity.Entity;
 import java.util.List;
 import java.util.function.Supplier;
 
+/**
+ * 远离实体任务 - 远离指定实体的抽象任务类
+ */
 public abstract class RunAwayFromEntitiesTask extends CustomBaritoneGoalTask {
 
-    private final Supplier<List<Entity>> _runAwaySupplier;
+    private final Supplier<List<Entity>> _runAwaySupplier; // 提供需要远离的实体列表的供应器
 
-    private final double _distanceToRun;
-    private final boolean _xz;
-    // See GoalrunAwayFromEntities penalty value
-    private final double _penalty;
+    private final double _distanceToRun; // 需要跑开的距离
+    private final boolean _xz; // 是否仅在XZ平面移动
+    // 参见GoalrunAwayFromEntities惩罚值
+    private final double _penalty; // 惩罚值
 
     public RunAwayFromEntitiesTask(Supplier<List<Entity>> toRunAwayFrom, double distanceToRun, boolean xz, double penalty) {
         _runAwaySupplier = toRunAwayFrom;
@@ -35,6 +38,9 @@ public abstract class RunAwayFromEntitiesTask extends CustomBaritoneGoalTask {
     }
 
 
+    /**
+     * 远离实体目标类
+     */
     private class GoalRunAwayStuff extends GoalRunAwayFromEntities {
 
         public GoalRunAwayStuff(AltoClef mod, double distance, boolean xz) {
@@ -43,6 +49,7 @@ public abstract class RunAwayFromEntitiesTask extends CustomBaritoneGoalTask {
 
         @Override
         protected List<net.minecraft.entity.Entity> getEntities(AltoClef mod) {
+            // 获取需要远离的实体列表
             return _runAwaySupplier.get();
         }
     }

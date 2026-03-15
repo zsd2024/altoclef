@@ -7,7 +7,8 @@ import adris.altoclef.util.helpers.StorageHelper;
 import net.minecraft.item.Items;
 
 /**
- * Make sure we have a tool at or above a mining level.
+ * 满足挖掘要求任务
+ * 确保我们拥有达到或超过挖掘等级要求的工具
  */
 public class SatisfyMiningRequirementTask extends Task {
 
@@ -19,14 +20,15 @@ public class SatisfyMiningRequirementTask extends Task {
 
     @Override
     protected void onStart() {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onTick() {
+        // 根据挖掘要求等级获取相应的工具
         switch (requirement) {
             case HAND:
-                // Will never happen if you program this right
+                // 如果编程正确，永远不会发生这种情况
                 break;
             case WOOD:
                 return TaskCatalogue.getItemTask(Items.WOODEN_PICKAXE, 1);
@@ -42,7 +44,7 @@ public class SatisfyMiningRequirementTask extends Task {
 
     @Override
     protected void onStop(Task interruptTask) {
-
+        // 任务停止时的清理
     }
 
     @Override
@@ -55,11 +57,12 @@ public class SatisfyMiningRequirementTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Satisfy Mining Req: " + requirement;
+        return "满足挖掘要求: " + requirement;
     }
 
     @Override
     public boolean isFinished() {
+        // 检查库存中是否有满足要求的工具
         return StorageHelper.miningRequirementMetInventory(requirement);
     }
 }

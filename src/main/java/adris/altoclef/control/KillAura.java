@@ -29,16 +29,25 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Controls and applies killaura
+ * 击杀光环（战斗控制）
+ * 控制和应用击杀光环，自动攻击附近的敌对实体
  */
 public class KillAura {
-    // Smart aura data
+    // 智能光环数据
     private final List<Entity> targets = new ArrayList<>();
+    // 是否正在使用盾牌保护
     boolean shielding = false;
+    // 力场范围
     private double forceFieldRange = Double.POSITIVE_INFINITY;
+    // 强制攻击的目标实体
     private Entity forceHit = null;
+    // 上一tick是否攻击过
     public boolean attackedLastTick = false;
 
+        /**
+     * 装备最佳武器
+     * @param mod AltoClef主模块实例
+     */
     public static void equipWeapon(AltoClef mod) {
         List<ItemStack> invStacks = mod.getItemStorage().getItemStacksPlayerInventory(true);
         if (!invStacks.isEmpty()) {
@@ -60,22 +69,39 @@ public class KillAura {
         }
     }
 
+        /**
+     * 每tick开始时的重置操作
+     * 清空目标列表、强制攻击实体和攻击状态
+     */
     public void tickStart() {
         targets.clear();
         forceHit = null;
         attackedLastTick = false;
     }
 
+        /**
+     * 应用光环到指定实体
+     * @param entity 要应用光环的实体
+     */
     public void applyAura(Entity entity) {
         targets.add(entity);
-        // Always hit ghast balls.
+        // 总是攻击恶魂火球。
         if (entity instanceof FireballEntity) forceHit = entity;
     }
 
+        /**
+     * 设置力场范围
+     * @param range 力场范围
+     */
     public void setRange(double range) {
         forceFieldRange = range;
     }
 
+        /**
+     * 每tick结束时的执行操作
+     * 处理攻击逻辑和盾牌保护
+     * @param mod AltoClef主模块实例
+     */
     public void tickEnd(AltoClef mod) {
         Optional<Entity> entities = targets.stream().min(StlHelper.compareValues(entity -> entity.squaredDistanceTo(mod.getPlayer())));
         if (entities.isPresent() &&
@@ -104,13 +130,13 @@ public class KillAura {
         } else {
             stopShielding(mod);
         }
-        // Run force field on map
+        // 在地图上运行力场
         switch (mod.getModSettings().getForceFieldStrategy()) {
             case FASTEST:
                 performFastestAttack(mod);
                 break;
             case SMART:
-                // Attack force mobs ALWAYS. (currently used only for fireballs)
+                // 总是攻击强制目标。（目前仅用于火球）
                 if (forceHit != null) {
                     attack(mod, forceHit, true);
                     break;
@@ -129,13 +155,17 @@ public class KillAura {
         }
     }
 
+        /**
+     * 执行延迟攻击（等待攻击冷却后攻击）
+     * @param mod AltoClef主模块实例
+     */
     private void performDelayedAttack(AltoClef mod) {
         if (!mod.getFoodChain().needsToEat() && !mod.getMLGBucketChain().isFalling(mod) &&
                 mod.getMLGBucketChain().doneMLG() && !mod.getMLGBucketChain().isChorusFruiting()) {
             if (forceHit != null) {
                 attack(mod, forceHit, true);
             }
-            // wait for the attack delay
+            // 等待攻击延迟
             if (targets.isEmpty()) {
                 return;
             }
@@ -150,20 +180,35 @@ public class KillAura {
         }
     }
 
+        /**
+     * 执行最快攻击（立即攻击所有目标）
+     * @param mod AltoClef主模块实例
+     */
     private void performFastestAttack(AltoClef mod) {
         if (!mod.getFoodChain().needsToEat() && !mod.getMLGBucketChain().isFalling(mod) &&
                 mod.getMLGBucketChain().doneMLG() && !mod.getMLGBucketChain().isChorusFruiting()) {
-            // Just attack whenever you can
+            // 只要可以就攻击
             for (Entity entity : targets) {
                 attack(mod, entity);
             }
         }
     }
 
+        /**
+     * 攻击实体（不装备武器）
+     * @param mod AltoClef主模块实例
+     * @param entity 要攻击的实体
+     */
     private void attack(AltoClef mod, Entity entity) {
         attack(mod, entity, false);
     }
 
+        /**
+     * 攻击实体
+     * @param mod AltoClef主模块实例
+     * @param entity 要攻击的实体
+     * @param equipSword 是否装备剑
+     */
     private void attack(AltoClef mod, Entity entity, boolean equipSword) {
         if (entity == null) return;
         if (!(entity instanceof FireballEntity)) {
@@ -182,7 +227,7 @@ public class KillAura {
                 equipWeapon(mod);
                 canAttack = true;
             } else {
-                // Equip non-tool
+                // 装备非工具
                 canAttack = mod.getSlotHandler().forceDeequipHitTool();
             }
             if (canAttack) {
@@ -194,6 +239,10 @@ public class KillAura {
         }
     }
 
+        /**
+     * 开始盾牌保护模式
+     * @param mod AltoClef主模块实例
+     */
     public void startShielding(AltoClef mod) {
         shielding = true;
         mod.getClientBaritone().getPathingBehavior().requestPause();
@@ -218,6 +267,10 @@ public class KillAura {
         mod.getInputControls().hold(Input.CLICK_RIGHT);
     }
 
+        /**
+     * 停止盾牌保护模式
+     * @param mod AltoClef主模块实例
+     */
     public void stopShielding(AltoClef mod) {
         if (shielding) {
             ItemStack cursor = StorageHelper.getItemStackInCursorSlot();
@@ -236,14 +289,25 @@ public class KillAura {
         }
     }
 
+        /**
+     * 检查是否正在使用盾牌保护
+     * @return 如果正在盾牌保护返回true，否则返回false
+     */
     public boolean isShielding() {
         return shielding;
     }
 
+    /**
+     * 力场策略枚举
+     */
     public enum Strategy {
+        // 关闭
         OFF,
+        // 最快攻击
         FASTEST,
+        // 延迟攻击
         DELAY,
+        // 智能攻击
         SMART
     }
 }

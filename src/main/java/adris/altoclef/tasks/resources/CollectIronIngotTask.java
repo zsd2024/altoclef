@@ -14,9 +14,13 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
 
+/**
+ * 收集铁锭任务
+ * 用于收集铁锭，通过熔炼粗铁获得
+ */
 public class CollectIronIngotTask extends ResourceTask {
 
-    private final int count;
+    private final int count; // 目标铁锭数量
 
     public CollectIronIngotTask(int count) {
         super(Items.IRON_INGOT, count);
@@ -35,6 +39,7 @@ public class CollectIronIngotTask extends ResourceTask {
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
+        // 通过熔炼粗铁来获得铁锭
         return new SmeltInFurnaceTask(new SmeltTarget(new ItemTarget(Items.IRON_INGOT, count), new ItemTarget(Items.RAW_IRON, count)));
     }
 
@@ -50,6 +55,6 @@ public class CollectIronIngotTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + count + " iron.";
+        return "收集 " + count + " 个铁锭。";
     }
 }

@@ -14,12 +14,15 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.Arrays;
 import java.util.HashMap;
 
-// Collects everything that's catalogued for a recipe.
+/**
+ * 收集配方目录资源任务
+ * 收集配方所需的所有已目录化的资源材料
+ */
 public class CollectRecipeCataloguedResourcesTask extends Task {
 
-    private final RecipeTarget[] _targets;
-    private final boolean _ignoreUncataloguedSlots;
-    private boolean _finished = false;
+    private final RecipeTarget[] _targets; // 目标配方数组
+    private final boolean _ignoreUncataloguedSlots; // 是否忽略未目录化的槽位
+    private boolean _finished = false; // 是否完成
 
     public CollectRecipeCataloguedResourcesTask(boolean ignoreUncataloguedSlots, RecipeTarget... targets) {
         _targets = targets;
@@ -33,25 +36,25 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
 
     @Override
     protected Task onTick() {
-        // TODO: Cache this once instead of doing it every frame.
+        // TODO: 缓存这一次而不是每帧执行
         AltoClef mod = AltoClef.getInstance();
 
-        // Stuff to get, both catalogued + individual items.
+        // 需要获取的物品，包括目录化和单个物品
         HashMap<String, Integer> catalogueCount = new HashMap<>();
         HashMap<Item, Integer> itemCount = new HashMap<>();
 
         for (RecipeTarget target : _targets) {
-            // Ignore this recipe if we have its item.
+            // 如果已有目标物品则跳过此配方
             //if (mod.getItemStorage().targetMet(target.getItem())) continue;
 
-            // null = empty which is always met.
+            // null = 空，总是满足
             if (target == null) continue;
 
             int weNeed = target.getTargetCount() - mod.getItemStorage().getItemCount(target.getOutputItem());
 
             if (weNeed > 0) {
                 CraftingRecipe recipe = target.getRecipe();
-                // Default, just go through the recipe slots and collect the first one.
+                // 默认，遍历配方槽位并收集第一个
                 for (int i = 0; i < recipe.getSlotCount(); ++i) {
                     ItemTarget slot = recipe.getSlot(i);
                     if (slot == null || slot.isEmpty()) continue;
@@ -59,9 +62,9 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
                     if (!slot.isCatalogueItem()) {
                         if (slot.getMatches().length != 1) {
                             if (!_ignoreUncataloguedSlots) {
-                                Debug.logWarning("Recipe collection for recipe " + recipe + " slot " + i
-                                        + " is not catalogued. Please define an explicit"
-                                        + " collectRecipeSubTask() function for this item target:" + slot
+                                Debug.logWarning("配方 " + recipe + " 槽位 " + i
+                                        + " 未目录化。请为此物品目标定义明确的"
+                                        + " collectRecipeSubTask() 函数：" + slot
                                 );
                             }
                         } else {
@@ -70,7 +73,7 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
                         }
                     } else {
                         String targetName = slot.getCatalogueName();
-                        // How many "repeats" of a recipe we will need.
+                        // 我们需要多少次"重复"配方
                         catalogueCount.put(targetName, catalogueCount.getOrDefault(targetName, 0) + numberOfRepeats);
                     }
                 }
@@ -78,14 +81,14 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
         }
 
 
-        // (Cache this with the above stuff!!)
-        // Grab materials
+        // (与上述内容一起缓存!!)
+        // 获取材料
         for (String catalogueMaterialName : catalogueCount.keySet()) {
             int count = catalogueCount.get(catalogueMaterialName);
             if (count > 0) {
                 ItemTarget itemTarget = new ItemTarget(catalogueMaterialName, count);
                 if (!StorageHelper.itemTargetsMet(mod, itemTarget)) {
-                    setDebugState("Getting " + itemTarget);
+                    setDebugState("获取 " + itemTarget);
                     return TaskCatalogue.getItemTask(catalogueMaterialName, count);
                 }
             }
@@ -94,7 +97,7 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
             int count = itemCount.get(item);
             if (count > 0) {
                 if (mod.getItemStorage().getItemCount(item) < count) {
-                    setDebugState("Getting " + item.getTranslationKey());
+                    setDebugState("获取 " + item.getTranslationKey());
                     return TaskCatalogue.getItemTask(item, count);
                 }
             }
@@ -107,7 +110,7 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
 
     @Override
     protected void onStop(Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -120,7 +123,7 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Collect Recipe Resources: " + ArrayUtils.toString(_targets);
+        return "收集配方资源: " + ArrayUtils.toString(_targets);
     }
 
     @Override
@@ -128,7 +131,7 @@ public class CollectRecipeCataloguedResourcesTask extends Task {
         if (_finished) {
             if (!StorageHelper.hasRecipeMaterialsOrTarget(AltoClef.getInstance(), this._targets)) {
                 _finished = false;
-                Debug.logMessage("Invalid collect recipe \"finished\" state, resetting.");
+                Debug.logMessage("无效的收集配方\"完成\"状态，重置。");
             }
         }
         return _finished;

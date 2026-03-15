@@ -8,13 +8,15 @@ import net.minecraft.block.Blocks;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 
-
+/**
+ * 前往要塞传送门任务 - 前往要塞并建造末地传送门
+ */
 public class GoToStrongholdPortalTask extends Task {
 
-    private LocateStrongholdCoordinatesTask _locateCoordsTask;
-    private final int _targetEyes;
-    private final int MINIMUM_EYES = 12;
-    private BlockPos _strongholdCoordinates;
+    private LocateStrongholdCoordinatesTask _locateCoordsTask; // 定位要塞坐标任务
+    private final int _targetEyes; // 目标末影之眼数量
+    private final int MINIMUM_EYES = 12; // 最小末影之眼数量
+    private BlockPos _strongholdCoordinates; // 要塞坐标
 
     public GoToStrongholdPortalTask(int targetEyes) {
         _targetEyes = targetEyes;
@@ -32,34 +34,36 @@ public class GoToStrongholdPortalTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         /*
-            If we don't know where stronghold is, find out where stronghold is.
-            If we do know where stronghold is, fast travel there
-            If there search it
-         */
+            如果我们不知道要塞在哪里，找出要塞在哪里。
+            如果我们知道要塞在哪里，快速传送过去
+            如果在那里搜索它
+          */
         if (_strongholdCoordinates == null) {
-            // in case any screen is open, prevents from getting stuck
+            // 如果有任何屏幕打开，防止卡住
             StorageHelper.closeScreen();
 
             _strongholdCoordinates = _locateCoordsTask.getStrongholdCoordinates().orElse(null);
             if (_strongholdCoordinates == null) {
+                // 如果末影之眼数量少于最小值且有末影之眼掉落，则拾取
                 if (mod.getItemStorage().getItemCount(Items.ENDER_EYE) < MINIMUM_EYES && mod.getEntityTracker().itemDropped(Items.ENDER_EYE)) {
-                    setDebugState("Picking up dropped eye");
+                    setDebugState("拾取掉落的末影之眼");
                     return new PickupDroppedItemTask(Items.ENDER_EYE, MINIMUM_EYES);
                 }
-                setDebugState("Triangulating stronghold...");
+                setDebugState("三角测量要塞...");
                 return _locateCoordsTask;
             }
         }
 
+        // 如果距离要塞坐标小于10且没有找到末地传送门框架，则重新三角测量
         if (mod.getPlayer().getPos().distanceTo(WorldHelper.toVec3d(_strongholdCoordinates)) < 10 && !mod.getBlockScanner().anyFound(Blocks.END_PORTAL_FRAME)) {
-            mod.log("Something went wrong whilst triangulating the stronghold... either the action got disrupted or the second eye went to a different stronghold");
-            mod.log("We will try to triangulate again now...");
+            mod.log("三角测量要塞时出现问题... 要么动作被打断，要么第二只眼睛指向了不同的要塞");
+            mod.log("我们现在将尝试再次三角测量...");
             _strongholdCoordinates = null;
             _locateCoordsTask = new LocateStrongholdCoordinatesTask(_targetEyes);
             return null;
         }
-        // Search stone brick chunks, but while we're wandering, go to the nether
-        setDebugState("Searching for Stronghold...");
+        // 搜索石砖区块，但在我们漫游时，前往下界
+        setDebugState("搜索要塞...");
         /*return new SearchChunkForBlockTask(Blocks.STONE_BRICKS) {
             @Override
             protected Task onTick(AltoClef mod) {
@@ -89,6 +93,6 @@ public class GoToStrongholdPortalTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Locating Stronghold";
+        return "定位要塞";
     }
 }

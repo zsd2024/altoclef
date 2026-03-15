@@ -27,29 +27,35 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 
 /**
- * Destroy a block at a position.
+ * 破坏指定位置的方块
  */
 public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
+    // 卡住检查器
     private final MovementProgressChecker stuckCheck = new MovementProgressChecker();
+    // 移动检查器
     private final MovementProgressChecker _moveChecker = new MovementProgressChecker();
+    // 目标位置
     private final BlockPos pos;
+    // 麻烦的方块类型数组（如藤蔓、梯子等）
     Block[] annoyingBlocks = new Block[]{
-            Blocks.VINE,
-            Blocks.NETHER_SPROUTS,
-            Blocks.CAVE_VINES,
-            Blocks.CAVE_VINES_PLANT,
-            Blocks.TWISTING_VINES,
-            Blocks.TWISTING_VINES_PLANT,
-            Blocks.WEEPING_VINES_PLANT,
-            Blocks.LADDER,
-            Blocks.BIG_DRIPLEAF,
-            Blocks.BIG_DRIPLEAF_STEM,
-            Blocks.SMALL_DRIPLEAF,
-            Blocks.TALL_GRASS,
-            Blocks.SHORT_GRASS,
-            Blocks.SWEET_BERRY_BUSH
+            Blocks.VINE,                  // 藤蔓
+            Blocks.NETHER_SPROUTS,        // 下界苗
+            Blocks.CAVE_VINES,            // 洞穴藤蔓
+            Blocks.CAVE_VINES_PLANT,      // 洞穴藤蔓植物
+            Blocks.TWISTING_VINES,        // 缠怨藤
+            Blocks.TWISTING_VINES_PLANT,  // 缠怨藤植物
+            Blocks.WEEPING_VINES_PLANT,   // 垂泪藤植物
+            Blocks.LADDER,                // 梯子
+            Blocks.BIG_DRIPLEAF,          // 大型垂滴叶
+            Blocks.BIG_DRIPLEAF_STEM,     // 大型垂滴叶茎
+            Blocks.SMALL_DRIPLEAF,        // 小型垂滴叶
+            Blocks.TALL_GRASS,            // 高草
+            Blocks.SHORT_GRASS,           // 短草
+            Blocks.SWEET_BERRY_BUSH       // 甜浆果丛
     };
+    // 解困任务
     private Task unstuckTask = null;
+    // 是否正在挖掘
     private boolean isMining;
 
     public DestroyBlockTask(BlockPos pos) {
@@ -57,17 +63,16 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
     }
 
     /**
-     * Generates an array of BlockPos objects representing the sides of a given BlockPos.
+     * 生成代表给定BlockPos周围侧面的BlockPos数组
      *
-     * @param pos The BlockPos object to generate the sides for.
-     * @return An array of BlockPos objects representing the sides of the given BlockPos.
+     * @param pos 要生成侧面的BlockPos对象
+     * @return 代表给定BlockPos侧面的BlockPos数组
      */
     private static BlockPos[] generateSides(BlockPos pos) {
         int x = pos.getX();
         int y = pos.getY();
         int z = pos.getZ();
 
-        // Log the values of x, y, and z for debugging
         Debug.logInternal("x = " + x);
         Debug.logInternal("y = " + y);
         Debug.logInternal("z = " + z);
@@ -85,193 +90,189 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
     }
 
     /**
-     * Checks if a block is annoying.
+     * 检查方块是否是麻烦的方块
      *
-     * @param mod The AltoClef mod instance.
-     * @param pos The position of the block.
-     * @return true if the block is annoying, false otherwise.
+     * @param mod AltoClef模组实例
+     * @param pos 方块的位置
+     * @return 如果方块是麻烦的方块则返回true，否则返回false
      */
     private boolean isAnnoying(AltoClef mod, BlockPos pos) {
         for (Block annoyingBlock : annoyingBlocks) {
             boolean isAnnoying = mod.getWorld().getBlockState(pos).getBlock() == annoyingBlock
-                    || mod.getWorld().getBlockState(pos).getBlock() instanceof DoorBlock
-                    || mod.getWorld().getBlockState(pos).getBlock() instanceof FenceBlock
-                    || mod.getWorld().getBlockState(pos).getBlock() instanceof FenceGateBlock
-                    || mod.getWorld().getBlockState(pos).getBlock() instanceof FlowerBlock;
+                    || mod.getWorld().getBlockState(pos).getBlock() instanceof DoorBlock      // 门方块
+                    || mod.getWorld().getBlockState(pos).getBlock() instanceof FenceBlock     // 栅栏方块
+                    || mod.getWorld().getBlockState(pos).getBlock() instanceof FenceGateBlock // 栅栏门方块
+                    || mod.getWorld().getBlockState(pos).getBlock() instanceof FlowerBlock;   // 花朵方块
             if (isAnnoying) {
-                Debug.logInternal("Block at position " + pos + " is annoying.");
+                Debug.logInternal("位置 " + pos + " 处的方块是麻烦的方块。");
                 return true;
             }
         }
-        Debug.logInternal("Block at position " + pos + " is not annoying.");
+        Debug.logInternal("位置 " + pos + " 处的方块不是麻烦的方块。");
         return false;
     }
 
     /**
-     * Returns the position of the block where the player is stuck.
-     * If there are no annoying block positions, returns null.
+     * 返回玩家被卡住的方块位置
+     * 如果没有麻烦的方块位置，则返回null
      *
-     * @param mod The instance of the AltoClef mod.
-     * @return The BlockPos of the stuck block, or null if none found.
+     * @param mod AltoClef模组实例
+     * @return 被卡住的方块位置，如果没有找到则返回null
      */
     private BlockPos stuckInBlock(AltoClef mod) {
         BlockPos playerPos = mod.getPlayer().getBlockPos();
         BlockPos[] toCheck = generateSides(playerPos);
         BlockPos[] toCheckHigh = generateSides(playerPos.up());
 
-        // Check if player position is annoying
+        // 检查玩家位置是否是麻烦的方块
         if (isAnnoying(mod, playerPos)) {
-            Debug.logInternal("Player position is annoying: " + playerPos);
+            Debug.logInternal("玩家位置是麻烦的方块: " + playerPos);
             return playerPos;
         }
 
-        // Check if player position (up) is annoying
+        // 检查玩家上方位置是否是麻烦的方块
         if (isAnnoying(mod, playerPos.up())) {
-            Debug.logInternal("Player position (up) is annoying: " + playerPos.up());
+            Debug.logInternal("玩家上方位置是麻烦的方块: " + playerPos.up());
             return playerPos.up();
         }
 
-        // Check each side block position
+        // 检查每个侧面的方块位置
         for (BlockPos check : toCheck) {
             if (isAnnoying(mod, check)) {
-                Debug.logInternal("Block position is annoying: " + check);
+                Debug.logInternal("方块位置是麻烦的方块: " + check);
                 return check;
             }
         }
 
-        // Check each high block position
+        // 检查每个高处的方块位置
         for (BlockPos check : toCheckHigh) {
             if (isAnnoying(mod, check)) {
-                Debug.logInternal("Block position (up) is annoying: " + check);
+                Debug.logInternal("方块位置（上方）是麻烦的方块: " + check);
                 return check;
             }
         }
 
-        Debug.logInternal("No annoying block positions found.");
+        Debug.logInternal("未找到麻烦的方块位置。");
         return null;
     }
 
     /**
-     * Retrieves a task to get the fence unstuck.
+     * 获取摆脱栅栏卡住的任务
      *
-     * @return The task to get the fence unstuck.
+     * @return 摆脱栅栏卡住的任务
      */
     private Task getFenceUnstuckTask() {
-        // Log the start of the function
-        Debug.logInternal("Entering getFenceUnstuckTask");
+        Debug.logInternal("进入getFenceUnstuckTask");
 
-        // Create a safe random shimmy task
         Task task = createSafeRandomShimmyTask();
 
-        // Log the end of the function
-        Debug.logInternal("Exiting getFenceUnstuckTask");
+        Debug.logInternal("退出getFenceUnstuckTask");
 
-        // Return the task
         return task;
     }
 
     /**
-     * Creates a new instance of SafeRandomShimmyTask.
+     * 创建一个新的SafeRandomShimmyTask实例
      *
-     * @return The created SafeRandomShimmyTask.
+     * @return 创建的SafeRandomShimmyTask
      */
     private Task createSafeRandomShimmyTask() {
         Task task = new SafeRandomShimmyTask();
-        Debug.logInternal("Created SafeRandomShimmyTask: " + task);
+        Debug.logInternal("创建了SafeRandomShimmyTask: " + task);
         return task;
     }
 
     /**
-     * This method is called when the mod starts.
-     * It cancels any ongoing pathing behavior, resets move checker and stuck check.
-     * If the cursor stack is not empty, it tries to move it to a suitable slot in the player inventory.
-     * If the item can be thrown away, it drops it in an undefined slot or the garbage slot.
-     * If the cursor stack is empty, it closes the screen.
+     * 模组启动时调用此方法
+     * 取消任何正在进行的寻路行为，重置移动检查器和卡住检查器
+     * 如果光标堆栈不为空，尝试将其移动到玩家背包中的合适槽位
+     * 如果物品可以丢弃，则将其丢弃到未定义槽位或垃圾槽位
+     * 如果光标堆栈为空，则关闭界面
      */
     @Override
     protected void onStart() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Cancel any ongoing pathing behavior.
+        // 取消任何正在进行的寻路行为
         mod.getClientBaritone().getPathingBehavior().forceCancel();
 
-        // Reset move checker and stuck check.
+        // 重置移动检查器和卡住检查器
         _moveChecker.reset();
         stuckCheck.reset();
 
-        // Get the item stack in the cursor slot.
+        // 获取光标槽位中的物品堆叠
         ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
-        Debug.logInternal("Cursor stack: " + cursorStack);
+        Debug.logInternal("光标堆叠: " + cursorStack);
 
-        // If the cursor stack is not empty, try to move it to a suitable slot in the player inventory.
+        // 如果光标堆叠不为空，尝试将其移动到玩家背包中的合适槽位
         if (!cursorStack.isEmpty()) {
             Optional<Slot> moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
-            Debug.logInternal("Move to slot: " + moveTo);
+            Debug.logInternal("移动到槽位: " + moveTo);
 
-            // If there is a slot where the item can fit, click on that slot to move the item.
+            // 如果有槽位可以容纳物品，则点击该槽位来移动物品
             moveTo.ifPresent(slot -> {
                 mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP);
-                Debug.logInternal("Clicked slot: " + slot);
+                Debug.logInternal("点击了槽位: " + slot);
             });
 
-            // If the item can be thrown away, click on an undefined slot to drop the item.
+            // 如果物品可以丢弃，点击未定义槽位来丢弃物品
             if (ItemHelper.canThrowAwayStack(mod, cursorStack)) {
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
-                Debug.logInternal("Clicked undefined slot");
+                Debug.logInternal("点击了未定义槽位");
             }
 
-            // Get the garbage slot and click on it to move the item.
+            // 获取垃圾槽位并点击它来移动物品
             Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-            Debug.logInternal("Garbage slot: " + garbage);
+            Debug.logInternal("垃圾槽位: " + garbage);
 
             garbage.ifPresent(slot -> {
                 mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP);
-                Debug.logInternal("Clicked slot: " + slot);
+                Debug.logInternal("点击了槽位: " + slot);
             });
 
-            // Click on an undefined slot to drop the item.
+            // 点击未定义槽位来丢弃物品
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
-            Debug.logInternal("Clicked undefined slot");
+            Debug.logInternal("点击了未定义槽位");
         } else {
-            // If the cursor stack is empty, close the screen.
+            // 如果光标堆叠为空，则关闭界面
             StorageHelper.closeScreen();
-            Debug.logInternal("Closed screen");
+            Debug.logInternal("关闭了界面");
         }
     }
 
     /**
-     * This method is called periodically to perform various tasks.
+     * 周期性调用此方法来执行各种任务
      *
-     * @return The next task to be executed.
+     * @return 要执行的下一个任务
      */
     @Override
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Check if there is white wool at the specified position
+        // 检查指定位置是否有白色羊毛
         if (mod.getWorld().getBlockState(pos).getBlock() == Blocks.WHITE_WOOL) {
-            // Iterate over all entities in the world
+            // 遍历世界中的所有实体
             Iterable<Entity> entities = mod.getWorld().getEntities();
             for (Entity entity : entities) {
-                // Check if the entity is a PillagerEntity and is within a distance of 144 blocks from the position
+                // 检查实体是否是掠夺者且在距离位置144格以内
                 if (entity instanceof PillagerEntity && pos.isWithinDistance(entity.getPos(), 144)) {
-                    Debug.logMessage("Blacklisting pillager wool.");
-                    // Request the block at the position to be marked as unreachable
+                    Debug.logMessage("屏蔽掠夺者羊毛。");
+                    // 请求将该位置的方块标记为不可到达
                     mod.getBlockScanner().requestBlockUnreachable(pos, 0);
                 }
             }
         }
 
-        // Reset the move checker if Baritone is currently pathing
+        // 如果Baritone当前正在寻路，则重置移动检查器
         if (mod.getClientBaritone().getPathingBehavior().isPathing()) {
             _moveChecker.reset();
         }
 
-        // Check if the player is in a Nether portal
+        // 检查玩家是否在下界传送门中
         if (WorldHelper.isInNetherPortal()) {
             if (!mod.getClientBaritone().getPathingBehavior().isPathing()) {
-                setDebugState("Getting out from nether portal");
-                // Hold the sneak and move forward inputs to exit the Nether portal
+                setDebugState("正在从下界传送门中退出");
+                // 按住潜行和向前移动输入以退出下界传送门
                 mod.getInputControls().hold(Input.SNEAK);
                 mod.getInputControls().hold(Input.MOVE_FORWARD);
                 return null;
@@ -286,17 +287,17 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
             mod.getInputControls().release(Input.MOVE_FORWARD);
         }
 
-        // Check if there is an active unstuck task and the player is stuck in a block
+        // 检查是否有活跃的解困任务且玩家卡在方块中
         if (unstuckTask != null && unstuckTask.isActive() && !unstuckTask.isFinished() && stuckInBlock(mod) != null) {
-            setDebugState("Getting unstuck from block.");
+            setDebugState("正在摆脱方块卡住。");
             stuckCheck.reset();
-            // Release control of Baritone's custom goal process and explore process
+            // 释放Baritone的自定义目标进程和探索进程的控制权
             mod.getClientBaritone().getCustomGoalProcess().onLostControl();
             mod.getClientBaritone().getExploreProcess().onLostControl();
             return unstuckTask;
         }
 
-        // Check if the move checker or the stuck check failed
+        // 检查移动检查器或卡住检查器是否失败
         if (!_moveChecker.check(mod) || !stuckCheck.check(mod)) {
             BlockPos blockStuck = stuckInBlock(mod);
             if (blockStuck != null) {
@@ -306,25 +307,25 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
             stuckCheck.reset();
         }
 
-        // Check if the move checker failed
+        // 检查移动检查器是否失败
         if (!_moveChecker.check(mod)) {
             _moveChecker.reset();
-            // Request the block at the position to be marked as unreachable
+            // 请求将该位置的方块标记为不可到达
             mod.getBlockScanner().requestBlockUnreachable(pos);
         }
 
-        // Check if the block above the position is not solid, the player is above the position,
-        // and the player is within a distance of 0.89 blocks from the position
+        // 检查位置上方的方块是否不是固体，玩家在位置上方，
+        // 且玩家在距离0.89格以内
         if (!WorldHelper.isSolidBlock(pos.up()) && mod.getPlayer().getPos().y > pos.getY() && pos.isWithinDistance(mod.getPlayer().isOnGround() ? mod.getPlayer().getPos() : mod.getPlayer().getPos().add(0, -1, 0), 0.89)) {
             if (WorldHelper.dangerousToBreakIfRightAbove(pos)) {
-                setDebugState("It's dangerous to break as we're right above it, moving away and trying again.");
+                setDebugState("从上方破坏是危险的，远离并重试。");
                 return new RunAwayFromPositionTask(3, pos.getY(), pos);
             }
         }
 
         Optional<Rotation> reach = LookHelper.getReach(pos);
         if (reach.isPresent() && (mod.getPlayer().isTouchingWater() || mod.getPlayer().isOnGround()) && !mod.getFoodChain().needsToEat() && !WorldHelper.isInNetherPortal() && mod.getClientBaritone().getPathingBehavior().isSafeToCancel()) {
-            setDebugState("Block in range, mining...");
+            setDebugState("方块在范围内，正在挖掘...");
             stuckCheck.reset();
             isMining = true;
             mod.getInputControls().release(Input.SNEAK);
@@ -335,12 +336,12 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
             if (!LookHelper.isLookingAt(mod, reach.get())) {
                 LookHelper.lookAt(reach.get());
             }
-            // Tool equip is handled in `PlayerInteractionFixChain`. Oof.
+            // 工具装备在`PlayerInteractionFixChain`中处理。呃。
             mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_LEFT, true);
         } else {
-            setDebugState("Getting to block...");
+            setDebugState("正在前往方块...");
             if (isMining && mod.getPlayer().isTouchingWater()) {
-                setDebugState("We are in water... holding break button");
+                setDebugState("我们在水中... 按住破坏按钮");
                 isMining = false;
                 mod.getBlockScanner().requestBlockUnreachable(pos);
                 mod.getInputControls().hold(Input.CLICK_LEFT);
@@ -360,6 +361,7 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
             }
             if (!mod.getClientBaritone().getCustomGoalProcess().isActive()) {
                 mod.getClientBaritone().getBuilderProcess().onLostControl();
+                // 如果上方方块是雪，则使用GoalBlock，否则使用GoalNear
                 mod.getClientBaritone().getCustomGoalProcess().setGoalAndPath(mod.getWorld().getBlockState(pos.up()).getBlock() ==
                         Blocks.SNOW ? new GoalBlock(pos) : new GoalNear(pos, 1));
             }
@@ -368,87 +370,84 @@ public class DestroyBlockTask extends Task implements ITaskRequiresGrounded {
     }
 
     /**
-     * This method is called when the task is interrupted or stopped.
-     * It cancels Baritone pathing and releases certain input controls.
+     * 任务被中断或停止时调用此方法
+     * 取消Baritone寻路并释放某些输入控制
      *
-     * @param interruptTask The task that interrupted the current task.
+     * @param interruptTask 中断当前任务的任务
      */
     @Override
     protected void onStop(Task interruptTask) {
         AltoClef mod = AltoClef.getInstance();
 
-        // Cancel Baritone pathing
+        // 取消Baritone寻路
         mod.getClientBaritone().getPathingBehavior().forceCancel();
 
-        // If not in game, return
+        // 如果不在游戏中，则返回
         if (!AltoClef.inGame()) {
             return;
         }
 
-        // Release input controls
+        // 释放输入控制
         mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_LEFT, false);
         mod.getInputControls().release(Input.SNEAK);
         mod.getInputControls().release(Input.MOVE_BACK);
         mod.getInputControls().release(Input.MOVE_FORWARD);
 
-        // Logging statements for debugging
-        Debug.logInternal("onStop method called");
-        Debug.logInternal("Baritone pathing cancelled");
+        Debug.logInternal("onStop方法被调用");
+        Debug.logInternal("Baritone寻路已取消");
         if (!AltoClef.inGame()) {
-            Debug.logInternal("Not in game");
+            Debug.logInternal("不在游戏中");
         }
-        Debug.logInternal("Left click input force state set to false");
-        Debug.logInternal("Released sneak input control");
-        Debug.logInternal("Released move back input control");
-        Debug.logInternal("Released move forward input control");
+        Debug.logInternal("左键点击输入强制状态设置为false");
+        Debug.logInternal("释放了潜行输入控制");
+        Debug.logInternal("释放了后退输入控制");
+        Debug.logInternal("释放了前进输入控制");
     }
 
     /**
-     * Checks if the block at the given position is air.
+     * 检查给定位置的方块是否是空气
      *
-     * @return true if the block is air, false otherwise
+     * @return 如果方块是空气则返回true，否则返回false
      */
     @Override
     public boolean isFinished() {
         BlockState blockState = AltoClef.getInstance().getWorld().getBlockState(pos);
         boolean isAir = blockState.isAir();
-        Debug.logInternal("Block at position " + pos + " is air: " + isAir);
+        Debug.logInternal("位置 " + pos + " 处的方块是空气: " + isAir);
         return isAir;
     }
 
     /**
-     * Checks if this task is equal to another task.
+     * 检查此任务是否与另一个任务相等
      *
-     * @param other The other task to compare against.
-     * @return True if the tasks are equal, false otherwise.
+     * @param other 要比较的其他任务
+     * @return 如果任务相等则返回True，否则返回false
      */
     @Override
     protected boolean isEqual(Task other) {
         boolean isSame = false;
 
-        // Check if the other task is an instance of DestroyBlockTask
+        // 检查其他任务是否是DestroyBlockTask的实例
         if (other instanceof DestroyBlockTask destroyBlockTask) {
 
-            // Check if the positions of the tasks are equal
+            // 检查任务的位置是否相等
             if (destroyBlockTask.pos.equals(pos)) {
                 isSame = true;
             }
         }
 
-        // Log the result of the equality check
-        Debug.logInternal("isEqual result: " + isSame);
+        Debug.logInternal("isEqual结果: " + isSame);
 
-        // Return the result of the equality check
         return isSame;
     }
 
     /**
-     * Generates a debug string representing the block destruction position.
+     * 生成表示方块破坏位置的调试字符串
      *
-     * @return The debug string.
+     * @return 调试字符串
      */
     @Override
     protected String toDebugString() {
-        return "Destroy block at " + pos.toShortString();
+        return "在 " + pos.toShortString() + " 处破坏方块";
     }
 }

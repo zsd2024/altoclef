@@ -10,10 +10,16 @@ import net.minecraft.entity.Entity;
 
 import java.util.function.Predicate;
 
+/**
+ * 击杀并拾取任务
+ * 用于击杀指定类型的生物并拾取掉落物品
+ */
 public class KillAndLootTask extends ResourceTask {
 
+    // 要击杀的实体类型
     private final Class<?> _toKill;
 
+    // 击杀任务
     private final Task _killTask;
 
     public KillAndLootTask(Class<?> toKill, Predicate<Entity> shouldKill, ItemTarget... itemTargets) {
@@ -35,26 +41,27 @@ public class KillAndLootTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
+        // 检查是否找到了要击杀的实体
         if (!mod.getEntityTracker().entityFound(_toKill)) {
             if (isInWrongDimension(mod)) {
-                setDebugState("Going to correct dimension.");
+                setDebugState("前往正确的维度。");
                 return getToCorrectDimensionTask(mod);
             }
-            setDebugState("Searching for mob...");
+            setDebugState("搜索生物...");
             return new TimeoutWanderTask();
         }
-        // We found the mob!
+        // 我们找到了生物！
         return _killTask;
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务停止时的清理
     }
 
     @Override
@@ -67,6 +74,6 @@ public class KillAndLootTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collect items from " + _toKill.toGenericString();
+        return "从 " + _toKill.toGenericString() + " 收集物品";
     }
 }

@@ -11,11 +11,15 @@ import adris.altoclef.util.helpers.WorldHelper;
 import net.minecraft.entity.passive.ChickenEntity;
 import net.minecraft.item.Items;
 
+/**
+ * 收集鸡蛋任务
+ * 用于收集鸡蛋，通过在鸡附近等待来获取鸡下的蛋
+ */
 public class CollectEggsTask extends ResourceTask {
 
-    private final int _count;
+    private final int _count; // 目标鸡蛋数量
 
-    private final DoToClosestEntityTask _waitNearChickens;
+    private final DoToClosestEntityTask _waitNearChickens; // 在最近鸡附近等待的任务
 
     private AltoClef _mod;
 
@@ -37,19 +41,19 @@ public class CollectEggsTask extends ResourceTask {
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // Wrong dimension check.
+        // 错误维度检查
         if (_waitNearChickens.wasWandering() && WorldHelper.getCurrentDimension() != Dimension.OVERWORLD) {
-            setDebugState("Going to right dimension.");
+            setDebugState("前往正确维度。");
             return new DefaultGoToDimensionTask(Dimension.OVERWORLD);
         }
-        // Just wait around chickens.
-        setDebugState("Waiting around chickens. Yes.");
+        // 在鸡附近等待
+        setDebugState("在鸡附近等待。是的。");
         return _waitNearChickens;
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -59,6 +63,6 @@ public class CollectEggsTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + _count + " eggs.";
+        return "收集 " + _count + " 个鸡蛋。";
     }
 }

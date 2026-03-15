@@ -20,6 +20,10 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+/**
+ * 击杀末影人任务
+ * 用于击杀末影人以获取末影珍珠
+ */
 public class KillEndermanTask extends ResourceTask {
 
     private final int _count;
@@ -39,52 +43,50 @@ public class KillEndermanTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // Dimension
+        // 检查维度和末影人是否存在
         if (!mod.getEntityTracker().entityFound(EndermanEntity.class)) {
             if (WorldHelper.getCurrentDimension() != Dimension.NETHER) {
                 return getToCorrectDimensionTask(mod);
             }
-            //nearest warped forest related block
+            // 查找最近的诡异森林相关方块
             Optional<BlockPos> nearest = mod.getBlockScanner().getNearestBlock(Blocks.TWISTING_VINES, Blocks.TWISTING_VINES_PLANT, Blocks.WARPED_HYPHAE, Blocks.WARPED_NYLIUM);
             if (nearest.isPresent()) {
                 if (WorldHelper.inRangeXZ(nearest.get(), mod.getPlayer().getBlockPos(), 40)) {
-                    setDebugState("Waiting for endermen to spawn...");
+                    setDebugState("等待末影人生成...");
                     return null;
                 }
 
-                setDebugState("Getting to warped forest biome");
+                setDebugState("前往诡异森林生物群系");
                 return new GetWithinRangeOfBlockTask(nearest.get(), 35);
             }
 
-            setDebugState("Warped forest biome not found");
+            setDebugState("未找到诡异森林生物群系");
             return new TimeoutWanderTask();
         }
 
-
+        // 定义在下界屋顶下方的实体谓词（Y坐标小于125）
         Predicate<Entity> belowNetherRoof = (entity) -> WorldHelper.getCurrentDimension() != Dimension.NETHER || entity.getY() < 125;
         final int TOO_FAR_AWAY = WorldHelper.getCurrentDimension() == Dimension.NETHER ? 10 : 256;
 
-
-        // Kill the angry one
+        // 攻击愤怒的末影人
         for (EndermanEntity entity : mod.getEntityTracker().getTrackedEntities(EndermanEntity.class)) {
-
             if (belowNetherRoof.test(entity) && entity.isAngry() && entity.getPos().isInRange(mod.getPlayer().getPos(), TOO_FAR_AWAY)) {
                 return new KillEntityTask(entity);
             }
         }
 
-        // Attack the closest one
+        // 攻击最近的末影人
         return new KillEntitiesTask(belowNetherRoof, EndermanEntity.class);
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务停止时的清理
     }
 
     @Override
@@ -97,6 +99,6 @@ public class KillEndermanTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Hunting endermen for pearls - " + AltoClef.getInstance().getItemStorage().getItemCount(Items.ENDER_PEARL) + "/" + _count;
+        return "狩猎末影人获取珍珠 - " + AltoClef.getInstance().getItemStorage().getItemCount(Items.ENDER_PEARL) + "/" + _count;
     }
 }

@@ -14,10 +14,14 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
 
+/**
+ * 收集燧石任务
+ * 用于收集燧石，通过挖掘沙砾获得，或放置沙砾后挖掘获得
+ */
 public class CollectFlintTask extends ResourceTask {
-    private static final float CLOSE_ENOUGH_FLINT = 10;
+    private static final float CLOSE_ENOUGH_FLINT = 10; // 距离足够近的沙砾阈值
 
-    private final int _count;
+    private final int _count; // 目标燧石数量
 
     public CollectFlintTask(int targetCount) {
         super(Items.FLINT, targetCount);
@@ -31,29 +35,31 @@ public class CollectFlintTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
 
-        // We might just want to mine the closest gravel.
+        // 我们可能只是想挖掘最近的沙砾
         Optional<BlockPos> closest = mod.getBlockScanner().getNearestBlock(mod.getPlayer().getPos(), validGravel -> WorldHelper.fallingBlockSafeToBreak(validGravel) && WorldHelper.canBreak(validGravel), Blocks.GRAVEL);
         if (closest.isPresent() && closest.get().isWithinDistance(mod.getPlayer().getPos(), CLOSE_ENOUGH_FLINT)) {
             return new DoToClosestBlockTask(DestroyBlockTask::new, Blocks.GRAVEL);
         }
 
-        // If we have gravel, place it.
+        // 如果我们有沙砾，放置它
         if (mod.getItemStorage().hasItem(Items.GRAVEL)) {
-            // Place it
+            // 放置沙砾
             return new PlaceBlockNearbyTask(Blocks.GRAVEL);
         }
 
-        // We don't have gravel and we need to search for flint. Grab some!
+        // 我们没有沙砾，需要寻找燧石。获取一些！
         return TaskCatalogue.getItemTask(Items.GRAVEL, 1);
     }
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
+        // 任务结束时的清理
     }
 
     @Override
@@ -66,7 +72,7 @@ public class CollectFlintTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collect " + _count + " flint";
+        return "收集 " + _count + " 个燧石";
     }
 
 

@@ -13,9 +13,13 @@ import net.minecraft.util.Hand;
 
 import java.util.Optional;
 
+/**
+ * 收集牛奶任务
+ * 用于收集牛奶桶，通过与牛交互来获取
+ */
 public class CollectMilkTask extends ResourceTask {
 
-    private final int count;
+    private final int count; // 目标牛奶桶数量
 
     public CollectMilkTask(int targetCount) {
         super(Items.MILK_BUCKET, targetCount);
@@ -29,15 +33,16 @@ public class CollectMilkTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
-        // Make sure we have a bucket.
+        // 确保我们有一个桶
         if (!mod.getItemStorage().hasItem(Items.BUCKET)) {
             return TaskCatalogue.getItemTask(Items.BUCKET, 1);
         }
-        // Dimension
+        // 维度检查
         if (!mod.getEntityTracker().entityFound(CowEntity.class) && isInWrongDimension(mod)) {
             return getToCorrectDimensionTask(mod);
         }
@@ -46,7 +51,7 @@ public class CollectMilkTask extends ResourceTask {
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -56,9 +61,13 @@ public class CollectMilkTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + count + " milk buckets.";
+        return "收集 " + count + " 个牛奶桶。";
     }
 
+    /**
+     * 挤牛奶任务
+     * 用于与最近的牛进行交互以获得牛奶
+     */
     static class MilkCowTask extends AbstractDoToEntityTask {
 
         public MilkCowTask() {
@@ -73,7 +82,7 @@ public class CollectMilkTask extends ResourceTask {
         @Override
         protected Task onEntityInteract(AltoClef mod, Entity entity) {
             if (!mod.getItemStorage().hasItem(Items.BUCKET)) {
-                Debug.logWarning("Failed to milk cow because you have no bucket.");
+                Debug.logWarning("挤牛奶失败，因为你没有桶。");
                 return null;
             }
             if (mod.getSlotHandler().forceEquipItem(Items.BUCKET)) {
@@ -91,7 +100,7 @@ public class CollectMilkTask extends ResourceTask {
 
         @Override
         protected String toDebugString() {
-            return "Milking Cow";
+            return "挤牛奶";
         }
     }
 }

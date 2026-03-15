@@ -25,38 +25,39 @@ import net.minecraft.util.math.Vec3d;
 import java.util.List;
 import java.util.Optional;
 
-// TODO improve wandering
+// TODO 改进漫步
 /**
- * Call this when the place you're currently at is bad for some reason and you just wanna get away.
+ * 当您当前所在的位置由于某种原因不好且您只想离开时调用此任务。
  */
 public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
-    private final MovementProgressChecker stuckCheck = new MovementProgressChecker();
-    private final float distanceToWander;
-    private final MovementProgressChecker progressChecker = new MovementProgressChecker();
-    private final boolean increaseRange;
-    private final TimerGame timer = new TimerGame(60);
+    private final MovementProgressChecker stuckCheck = new MovementProgressChecker(); // 卡住检查器
+    private final float distanceToWander; // 漫步距离
+    private final MovementProgressChecker progressChecker = new MovementProgressChecker(); // 进度检查器
+    private final boolean increaseRange; // 是否增加范围
+    private final TimerGame timer = new TimerGame(60); // 计时器
+    // 烦人的方块列表
     Block[] annoyingBlocks = new Block[]{
-            Blocks.VINE,
-            Blocks.NETHER_SPROUTS,
-            Blocks.CAVE_VINES,
-            Blocks.CAVE_VINES_PLANT,
-            Blocks.TWISTING_VINES,
-            Blocks.TWISTING_VINES_PLANT,
-            Blocks.WEEPING_VINES_PLANT,
-            Blocks.LADDER,
-            Blocks.BIG_DRIPLEAF,
-            Blocks.BIG_DRIPLEAF_STEM,
-            Blocks.SMALL_DRIPLEAF,
-            Blocks.TALL_GRASS,
-            Blocks.SHORT_GRASS,
-            Blocks.SWEET_BERRY_BUSH
+            Blocks.VINE, // 藤蔓
+            Blocks.NETHER_SPROUTS, // 下界芽
+            Blocks.CAVE_VINES, // 洞穴藤蔓
+            Blocks.CAVE_VINES_PLANT, // 洞穴藤蔓植物
+            Blocks.TWISTING_VINES, // 扭曲藤蔓
+            Blocks.TWISTING_VINES_PLANT, // 扭曲藤蔓植物
+            Blocks.WEEPING_VINES_PLANT, // 垂泪藤蔓植物
+            Blocks.LADDER, // 梯子
+            Blocks.BIG_DRIPLEAF, // 大型垂滴叶
+            Blocks.BIG_DRIPLEAF_STEM, // 大型垂滴叶茎
+            Blocks.SMALL_DRIPLEAF, // 小型垂滴叶
+            Blocks.TALL_GRASS, // 高草
+            Blocks.SHORT_GRASS, // 矮草
+            Blocks.SWEET_BERRY_BUSH // 甜浆果丛
     };
-    private Vec3d origin;
+    private Vec3d origin; // 起始位置
     //private DistanceProgressChecker _distanceProgressChecker = new DistanceProgressChecker(10, 0.1f);
-    private boolean _forceExplore;
-    private Task _unstuckTask = null;
-    private int failCounter;
-    private double _wanderDistanceExtension;
+    private boolean _forceExplore; // 是否强制探索
+    private Task _unstuckTask = null; // 解卡任务
+    private int failCounter; // 失败计数器
+    private double _wanderDistanceExtension; // 漫步距离扩展
 
     public TimeoutWanderTask(float distanceToWander, boolean increaseRange) {
         this.distanceToWander = distanceToWander;
@@ -77,45 +78,68 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
         _forceExplore = forceExplore;
     }
 
+    /**
+     * 生成周围的8个方块位置
+     * @param pos 中心位置
+     * @return 周围的方块位置数组
+     */
     private static BlockPos[] generateSides(BlockPos pos) {
         return new BlockPos[]{
-                pos.add(1,0,0),
-                pos.add(-1,0,0),
-                pos.add(0,0,1),
-                pos.add(0,0,-1),
-                pos.add(1,0,-1),
-                pos.add(1,0,1),
-                pos.add(-1,0,-1),
-                pos.add(-1,0,1)
+                pos.add(1,0,0),   // 东
+                pos.add(-1,0,0),  // 西
+                pos.add(0,0,1),   // 南
+                pos.add(0,0,-1),  // 北
+                pos.add(1,0,-1),  // 东北
+                pos.add(1,0,1),   // 东南
+                pos.add(-1,0,-1), // 西北
+                pos.add(-1,0,1)   // 西南
         };
     }
 
+    /**
+     * 检查指定位置的方块是否令人烦恼（可能导致卡住）
+     * @param mod AltoClef实例
+     * @param pos 位置
+     * @return 是否为令人烦恼的方块
+     */
     private boolean isAnnoying(AltoClef mod, BlockPos pos) {
         for (Block AnnoyingBlocks : annoyingBlocks) {
             return mod.getWorld().getBlockState(pos).getBlock() == AnnoyingBlocks ||
-                    mod.getWorld().getBlockState(pos).getBlock() instanceof DoorBlock ||
-                    mod.getWorld().getBlockState(pos).getBlock() instanceof FenceBlock ||
-                    mod.getWorld().getBlockState(pos).getBlock() instanceof FenceGateBlock ||
-                    mod.getWorld().getBlockState(pos).getBlock() instanceof FlowerBlock;
+                    mod.getWorld().getBlockState(pos).getBlock() instanceof DoorBlock || // 门
+                    mod.getWorld().getBlockState(pos).getBlock() instanceof FenceBlock || // 栅栏
+                    mod.getWorld().getBlockState(pos).getBlock() instanceof FenceGateBlock || // 栅栏门
+                    mod.getWorld().getBlockState(pos).getBlock() instanceof FlowerBlock; // 花
         }
         return false;
     }
 
+    /**
+     * 重置漫步
+     */
     public void resetWander() {
         _wanderDistanceExtension = 0;
     }
 
-    // This happens all the time in mineshafts and swamps/jungles
+    // 这在矿井和沼泽/丛林中经常发生
+    /**
+     * 检查玩家是否卡在烦人的方块中
+     * 这在矿井和沼泽/丛林中经常发生
+     * @param mod AltoClef实例
+     * @return 卡住的方块位置，如果没有则返回null
+     */
     private BlockPos stuckInBlock(AltoClef mod) {
         BlockPos p = mod.getPlayer().getBlockPos();
+        // 检查玩家脚下和上方的方块
         if (isAnnoying(mod, p)) return p;
         if (isAnnoying(mod, p.up())) return p.up();
+        // 检查周围方块
         BlockPos[] toCheck = generateSides(p);
         for (BlockPos check : toCheck) {
             if (isAnnoying(mod, check)) {
                 return check;
             }
         }
+        // 检查上方一层的周围方块
         BlockPos[] toCheckHigh = generateSides(p.up());
         for (BlockPos check : toCheckHigh) {
             if (isAnnoying(mod, check)) {
@@ -125,8 +149,12 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
         return null;
     }
 
+    /**
+     * 获取栅栏解卡任务
+     * @return 解卡任务
+     */
     private Task getFenceUnstuckTask() {
-        return new SafeRandomShimmyTask();
+        return new SafeRandomShimmyTask(); // 安全随机摆动任务
     }
 
     @Override
@@ -147,7 +175,7 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             }
             Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-            // Try throwing away cursor slot if it's garbage
+            // 如果是垃圾，尝试丢弃光标槽中的物品
             garbage.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
         } else {
@@ -165,9 +193,9 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
         }
         if (WorldHelper.isInNetherPortal()) {
             if (!mod.getClientBaritone().getPathingBehavior().isPathing()) {
-                setDebugState("Getting out from nether portal");
-                mod.getInputControls().hold(Input.SNEAK);
-                mod.getInputControls().hold(Input.MOVE_FORWARD);
+                setDebugState("从下界传送门出来");
+                mod.getInputControls().hold(Input.SNEAK); // 按住潜行
+                mod.getInputControls().hold(Input.MOVE_FORWARD); // 按住向前移动
                 return null;
             } else {
                 mod.getInputControls().release(Input.SNEAK);
@@ -182,9 +210,9 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
             }
         }
         if (_unstuckTask != null && _unstuckTask.isActive() && !_unstuckTask.isFinished() && stuckInBlock(mod) != null) {
-            setDebugState("Getting unstuck from block.");
+            setDebugState("从方块中解卡。");
             stuckCheck.reset();
-            // Stop other tasks, we are JUST shimmying
+            // 停止其他任务，我们只进行摆动
             mod.getClientBaritone().getCustomGoalProcess().onLostControl();
             mod.getClientBaritone().getExploreProcess().onLostControl();
             return _unstuckTask;
@@ -194,7 +222,7 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
             for (Entity CloseEntities : closeEntities) {
                 if (CloseEntities instanceof MobEntity &&
                         CloseEntities.getPos().isInRange(mod.getPlayer().getPos(), 1)) {
-                    setDebugState("Killing annoying entity.");
+                    setDebugState("杀死烦人的实体。");
                     return new KillEntitiesTask(CloseEntities.getClass());
                 }
             }
@@ -206,7 +234,7 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
             }
             stuckCheck.reset();
         }
-        setDebugState("Exploring.");
+        setDebugState("探索中。");
         switch (WorldHelper.getCurrentDimension()) {
             case END -> {
                 if (timer.getDuration() >= 30) {
@@ -228,7 +256,7 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
             progressChecker.reset();
             if (!_forceExplore) {
                 failCounter++;
-                Debug.logMessage("Failed exploring.");
+                Debug.logMessage("探索失败。");
             }
         }
         return null;
@@ -240,19 +268,19 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
         if (isFinished()) {
             if (increaseRange) {
                 _wanderDistanceExtension += distanceToWander;
-                Debug.logMessage("Increased wander range");
+                Debug.logMessage("增加漫步范围");
             }
         }
     }
 
     @Override
     public boolean isFinished() {
-        // Why the heck did I add this in?
+        // 为什么我要添加这个？
         //if (_origin == null) return true;
 
         if (Float.isInfinite(distanceToWander)) return false;
 
-        // If we fail 10 times or more, we may as well try the previous task again.
+        // 如果我们失败10次或更多，我们不妨再次尝试之前的任务。
         if (failCounter > 10) {
             return true;
         }
@@ -282,6 +310,6 @@ public class TimeoutWanderTask extends Task implements ITaskRequiresGrounded {
 
     @Override
     protected String toDebugString() {
-        return "Wander for " + (distanceToWander + _wanderDistanceExtension) + " blocks";
+        return "漫步 " + (distanceToWander + _wanderDistanceExtension) + " 个方块";
     }
 }

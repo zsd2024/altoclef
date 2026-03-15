@@ -24,16 +24,16 @@ import java.util.*;
 import java.util.function.Predicate;
 
 /**
- * Keeps track of items in containers
+ * 容器子跟踪器 - 跟踪容器中的物品
  */
 public class ContainerSubTracker extends Tracker {
 
-    private final HashMap<Dimension, HashMap<BlockPos, ContainerCache>> containerCaches = new HashMap<>();
-    private boolean containerOpen;
-    private BlockPos lastBlockPosInteraction;
-    private Block lastBlockInteraction;
-    private ContainerCache enderChestCache;
-    private boolean hasSentError;
+    private final HashMap<Dimension, HashMap<BlockPos, ContainerCache>> containerCaches = new HashMap<>(); // 容器缓存
+    private boolean containerOpen; // 容器是否打开
+    private BlockPos lastBlockPosInteraction; // 最后方块位置交互
+    private Block lastBlockInteraction; // 最后方块交互
+    private ContainerCache enderChestCache; // 末影箱缓存
+    private boolean hasSentError; // 是否已发送错误
 
     public ContainerSubTracker(TrackerManager manager) {
         super(manager);
@@ -41,7 +41,7 @@ public class ContainerSubTracker extends Tracker {
             containerCaches.put(dimension, new HashMap<>());
         }
 
-        // Listen for when we interact with a block
+        // 监听与方块交互时的事件
         EventBus.subscribe(BlockInteractEvent.class, evt -> {
             BlockPos blockPos = evt.hitResult.getBlockPos();
             BlockState bs = mod.getWorld().getBlockState(blockPos);
@@ -57,6 +57,11 @@ public class ContainerSubTracker extends Tracker {
         });
     }
 
+    /**
+     * 方块交互时的回调
+     * @param pos 方块位置
+     * @param block 方块
+     */
     private void onBlockInteract(BlockPos pos, Block block) {
         if (block instanceof AbstractFurnaceBlock ||
                 block instanceof ChestBlock ||
@@ -70,6 +75,10 @@ public class ContainerSubTracker extends Tracker {
         }
     }
 
+    /**
+     * 屏幕打开时的第一刻回调
+     * @param screen 屏幕
+     */
     private void onScreenOpenFirstTick(final Screen screen) {
         containerOpen = screen instanceof FurnaceScreen
                 || screen instanceof GenericContainerScreen
@@ -79,6 +88,9 @@ public class ContainerSubTracker extends Tracker {
                 || screen instanceof ShulkerBoxScreen;
     }
 
+    /**
+     * 屏幕关闭时的回调
+     */
     private void onScreenClose() {
         containerOpen = false;
         lastBlockPosInteraction = null;
@@ -86,13 +98,16 @@ public class ContainerSubTracker extends Tracker {
         hasSentError = false;
     }
 
+    /**
+     * 服务器刻度时执行
+     */
     public void onServerTick() {
         if (MinecraftClient.getInstance().player == null)
             return;
-        // If we haven't registered interacting with a block, try the currently "looking at" block
+        // 如果我们没有注册与方块的交互，尝试当前"注视"的方块
         if (containerOpen && lastBlockPosInteraction == null && lastBlockInteraction == null) {
             if (MinecraftClient.getInstance().crosshairTarget instanceof BlockHitResult bhit) {
-                Debug.logWarning("Screen open but no block interaction detected, using the block we're currently looking at.");
+                Debug.logWarning("屏幕打开但未检测到方块交互，使用我们当前注视的方块。");
                 lastBlockPosInteraction = bhit.getBlockPos();
                 lastBlockInteraction = mod.getWorld().getBlockState(lastBlockPosInteraction).getBlock();
             }
@@ -105,25 +120,25 @@ public class ContainerSubTracker extends Tracker {
 
             HashMap<BlockPos, ContainerCache> dimCache = containerCaches.get(WorldHelper.getCurrentDimension());
 
-            // Container Type Mismatch, reset.
+            // 容器类型不匹配，重置。
             if (dimCache.containsKey(containerPos)) {
                 ContainerType currentType = dimCache.get(containerPos).getContainerType();
                 if (!ContainerType.screenHandlerMatches(currentType, handler)) {
                     if (!hasSentError) {
-                        Debug.logMessage("Mismatched container screen at " + containerPos.toShortString() + ", will overwrite container data: " + handler.getType() + " ?=> " + currentType);
+                        Debug.logMessage("在 " + containerPos.toShortString() + " 处的容器屏幕不匹配，将覆盖容器数据: " + handler.getType() + " ?=> " + currentType);
                         hasSentError = true;
                     }
                     dimCache.remove(containerPos);
                 }
             }
 
-            // New container found
+            // 发现新容器
             if (!dimCache.containsKey(containerPos)) {
                 Block containerBlock = lastBlockInteraction;
                 ContainerType interactType = ContainerType.getFromBlock(containerBlock);
                 ContainerCache newCache = new ContainerCache(WorldHelper.getCurrentDimension(), containerPos, interactType);
                 dimCache.put(containerPos, newCache);
-                // Special ender chest cache
+                // 特殊末影箱缓存
                 if (interactType == ContainerType.ENDER_CHEST) {
                     enderChestCache = newCache;
                 }
@@ -137,6 +152,12 @@ public class ContainerSubTracker extends Tracker {
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    /**
+     * 检查容器缓存是否有效
+     * @param dimension 维度
+     * @param cache 容器缓存
+     * @return 是否有效
+     */
     private boolean isContainerCacheValid(Dimension dimension, ContainerCache cache) {
         BlockPos pos = cache.getBlockPos();
         if (WorldHelper.getCurrentDimension() == dimension && mod.getChunkTracker().isChunkLoaded(pos)) {
@@ -149,6 +170,12 @@ public class ContainerSubTracker extends Tracker {
         return true;
     }
 
+    /**
+     * 获取指定维度和位置的容器缓存
+     * @param dimension 维度
+     * @param pos 位置
+     * @return 容器缓存
+     */
     public Optional<ContainerCache> getContainerAtPosition(Dimension dimension, BlockPos pos) {
         Optional<ContainerCache> cache = Optional.ofNullable(containerCaches.get(dimension).getOrDefault(pos, null));
         if (cache.isPresent() && !isContainerCacheValid(dimension, cache.get())) {
@@ -158,14 +185,28 @@ public class ContainerSubTracker extends Tracker {
         return cache;
     }
 
+    /**
+     * 获取指定位置的容器缓存
+     * @param pos 位置
+     * @return 容器缓存
+     */
     public Optional<ContainerCache> getContainerAtPosition(BlockPos pos) {
         return getContainerAtPosition(WorldHelper.getCurrentDimension(), pos);
     }
 
+    /**
+     * 获取末影箱存储缓存
+     * @return 末影箱存储缓存
+     */
     public Optional<ContainerCache> getEnderChestStorage() {
         return Optional.ofNullable(enderChestCache);
     }
 
+    /**
+     * 获取满足条件的已缓存容器列表
+     * @param accept 接受条件
+     * @return 容器缓存列表
+     */
     public List<ContainerCache> getCachedContainers(Predicate<ContainerCache> accept) {
         List<ContainerCache> result = new ArrayList<>();
         List<Pair<Dimension, BlockPos>> toRemove = new ArrayList<>();
@@ -186,11 +227,22 @@ public class ContainerSubTracker extends Tracker {
         return result;
     }
 
+    /**
+     * 获取指定类型的已缓存容器列表
+     * @param types 容器类型数组
+     * @return 容器缓存列表
+     */
     public List<ContainerCache> getCachedContainers(ContainerType... types) {
         Set<ContainerType> typeSet = new HashSet<>(Arrays.asList(types));
         return getCachedContainers(cache -> typeSet.contains(cache.getContainerType()));
     }
 
+    /**
+     * 获取距离指定位置最近的满足条件的容器缓存
+     * @param pos 位置
+     * @param accept 接受条件
+     * @return 最近的容器缓存
+     */
     public Optional<ContainerCache> getClosestTo(Vec3d pos, Predicate<ContainerCache> accept) {
         double bestDist = Double.POSITIVE_INFINITY;
         Dimension dim = WorldHelper.getCurrentDimension();
@@ -211,26 +263,49 @@ public class ContainerSubTracker extends Tracker {
                 }
             }
         }
-        // Clear anything invalid
+        // 清除任何无效项
         for (BlockPos remove : toRemove) {
             containerCaches.get(dim).remove(remove);
         }
         return Optional.ofNullable(bestCache);
     }
 
+    /**
+     * 获取距离指定位置最近的指定类型容器缓存
+     * @param pos 位置
+     * @param types 容器类型数组
+     * @return 最近的容器缓存
+     */
     public Optional<ContainerCache> getClosestTo(Vec3d pos, ContainerType... types) {
         Set<ContainerType> typeSet = new HashSet<>(Arrays.asList(types));
         return getClosestTo(pos, cache -> typeSet.contains(cache.getContainerType()));
     }
 
+    /**
+     * 获取包含指定物品的容器列表
+     * @param items 物品数组
+     * @return 容器缓存列表
+     */
     public List<ContainerCache> getContainersWithItem(Item... items) {
         return getCachedContainers(cache -> cache.hasItem(items));
     }
 
+    /**
+     * 获取距离指定位置最近的包含指定物品的容器缓存
+     * @param pos 位置
+     * @param items 物品数组
+     * @return 最近的容器缓存
+     */
     public Optional<ContainerCache> getClosestWithItem(Vec3d pos, Item... items) {
         return getClosestTo(pos, cache -> cache.hasItem(items));
     }
 
+    /**
+     * 检查是否有所需物品，满足指定条件
+     * @param accept 接受条件
+     * @param items 物品数组
+     * @return 是否有所需物品
+     */
     public boolean hasItem(Predicate<ContainerCache> accept, Item... items) {
         for (HashMap<BlockPos, ContainerCache> map : containerCaches.values()) {
             for (ContainerCache cache : map.values()) {
@@ -241,10 +316,19 @@ public class ContainerSubTracker extends Tracker {
         return false;
     }
 
+    /**
+     * 检查是否有所需物品
+     * @param items 物品数组
+     * @return 是否有所需物品
+     */
     public boolean hasItem(Item... items) {
         return hasItem(cache -> true, items);
     }
 
+    /**
+     * 获取最后方块位置交互
+     * @return 最后方块位置交互
+     */
     public BlockPos getLastBlockPosInteraction() {
         return lastBlockPosInteraction;
     }

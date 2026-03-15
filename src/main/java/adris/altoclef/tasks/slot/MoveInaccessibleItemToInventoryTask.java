@@ -13,8 +13,13 @@ import net.minecraft.screen.slot.SlotActionType;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * 将不可访问的物品移动到背包的任务
+ * 当物品在容器中但无法从容器中访问时，将它们移回玩家背包
+ */
 public class MoveInaccessibleItemToInventoryTask extends Task {
 
+    // 目标物品
     private final ItemTarget target;
 
     public MoveInaccessibleItemToInventoryTask(ItemTarget target) {
@@ -23,14 +28,14 @@ public class MoveInaccessibleItemToInventoryTask extends Task {
 
     @Override
     protected void onStart() {
-
+        // 任务开始时不需要特别处理
     }
 
     @Override
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Ensure inventory is closed.
+        // 确保背包界面已关闭
         if (!StorageHelper.isPlayerInventoryOpen()) {
             ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
             if (!cursorStack.isEmpty()) {
@@ -44,7 +49,7 @@ public class MoveInaccessibleItemToInventoryTask extends Task {
                     return null;
                 }
                 Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-                // Try throwing away cursor slot if it's garbage
+                // 如果光标槽是垃圾，则尝试丢弃
                 if (garbage.isPresent()) {
                     mod.getSlotHandler().clickSlot(garbage.get(), 0, SlotActionType.PICKUP);
                     return null;
@@ -53,18 +58,18 @@ public class MoveInaccessibleItemToInventoryTask extends Task {
             } else {
                 StorageHelper.closeScreen();
             }
-            setDebugState("Closing screen first (hope this doesn't get spammed a million times)");
+            setDebugState("首先关闭界面（希望这不会被重复执行）");
             return null;
         }
 
         Optional<Slot> slotToMove = StorageHelper.getFilledInventorySlotInaccessibleToContainer(mod, target);
         if (slotToMove.isPresent()) {
-            // Force cursor slot if we have one.
+            // 如果光标槽中有目标物品，则强制使用光标槽
             if (target.matches(StorageHelper.getItemStackInCursorSlot().getItem())) {
                 slotToMove = Optional.of(CursorSlot.SLOT);
             }
-            // issue is a full cursor slot when trying to clear out bad items.
-            // solution: ensure cursor is empty first
+            // 问题是在清空坏物品时光标槽已满
+            // 解决方案：首先确保光标为空
             if (!StorageHelper.getItemStackInCursorSlot().isEmpty()) {
                 return new EnsureFreeCursorSlotTask();
             }
@@ -73,8 +78,8 @@ public class MoveInaccessibleItemToInventoryTask extends Task {
             ItemStack stack = StorageHelper.getItemStackInSlot(toMove);
             Optional<Slot> toMoveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(stack, false);
             if (toMoveTo.isPresent()) {
-                setDebugState("Moving slot " + toMove + " to inventory");
-                // Pick up & move
+                setDebugState("将槽位 " + toMove + " 移动到背包");
+                // 拾取并移动
                 if (Slot.isCursor(toMove)) {
                     mod.getSlotHandler().clickSlot(toMoveTo.get(), 0, SlotActionType.PICKUP);
                 } else {
@@ -82,23 +87,24 @@ public class MoveInaccessibleItemToInventoryTask extends Task {
                 }
                 return null;
             } else {
-                setDebugState("Free up inventory first.");
-                // Make it free first.
+                setDebugState("首先释放背包空间。");
+                // 先释放空间
                 return new EnsureFreeInventorySlotTask();
             }
         }
-        setDebugState("NONE FOUND");
+        setDebugState("未找到");
         return null;
     }
 
     @Override
     protected void onStop(Task interruptTask) {
-
+        // 任务停止时不需要特别处理
     }
 
     @Override
     protected boolean isEqual(Task other) {
         if (other instanceof MoveInaccessibleItemToInventoryTask task) {
+            // 比较目标物品是否相同
             return Objects.equals(task.target, target);
         }
         return false;
@@ -106,6 +112,6 @@ public class MoveInaccessibleItemToInventoryTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Making item accessible: " + target;
+        return "使物品可访问: " + target;
     }
 }

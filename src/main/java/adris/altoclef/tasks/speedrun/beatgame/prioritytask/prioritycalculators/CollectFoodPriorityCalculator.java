@@ -22,14 +22,15 @@ import java.util.function.Predicate;
 import static adris.altoclef.tasks.resources.CollectFoodTask.*;
 
 /**
- * partial copy of CollectFoodTask.java, might be a good idea to somehow use the methods there instead of copying them
- * this class is needed because if we calculate the priority to something and then the tasks goes somewhere else it can cause it to get stuck
+ * 食物收集优先级计算器
+ * CollectFoodTask.java的部分复制，可能需要想办法使用那里的方法而不是复制
+ * 这个类是必要的，因为如果计算了某个东西的优先级，然后任务去往其他地方，可能会导致卡住
  */
 
 public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
 
-    private final AltoClef mod;
-    private final double foodUnits;
+    private final AltoClef mod; // AltoClef实例
+    private final double foodUnits; // 食物单位
 
     public CollectFoodPriorityCalculator(AltoClef mod ,double foodUnits) {
         super(Integer.MAX_VALUE,Integer.MAX_VALUE);
@@ -37,13 +38,18 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
         this.foodUnits = foodUnits;
     }
 
+    /**
+     * 计算优先级
+     * @param count 食物数量
+     * @return 优先级值
+     */
     public double calculatePriority(int count) {
         double distance = getDistance(mod);
 
         double multiplier = 1;
         double foodPotential = CollectFoodTask.calculateFoodPotential(mod);
 
-        //prevents from going to the nether without any food
+        // 防止在没有任何食物的情况下进入下界
         if (Double.isInfinite(distance) && foodPotential < foodUnits) return 0.1d;
 
         Optional<BlockPos> hay = mod.getBlockScanner().getNearestBlock(Blocks.HAY_BLOCK);
@@ -65,17 +71,22 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
         return 33 / distance * 37 * multiplier;
     }
 
+    /**
+     * 获取食物来源距离
+     * @param mod AltoClef实例
+     * @return 最近食物来源的距离
+     */
     private double getDistance(AltoClef mod) {
         PlayerEntity player = mod.getPlayer();
 
-        // Pick up food items from ground
+        // 从地面拾取食物
         for (Item item : ITEMS_TO_PICK_UP) {
             double dist  = this.pickupTaskOrNull(mod, item);
             if (dist != Double.NEGATIVE_INFINITY) {
                 return dist;
             }
         }
-        // Pick up raw/cooked foods on ground
+        // 拾取地面上的生食/熟食
         for (CookableFoodTarget cookable : COOKABLE_FOODS) {
             double dist = this.pickupTaskOrNull(mod, cookable.getRaw(), 20);
             if (dist == Double.NEGATIVE_INFINITY) dist = this.pickupTaskOrNull(mod, cookable.getCooked(), 40);
@@ -85,38 +96,38 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
             }
         }
 
-        // Hay blocks
+        // 干草块
         double hayTaskBlock = this.pickupBlockTaskOrNull(mod, Blocks.HAY_BLOCK, Items.HAY_BLOCK, 300);
         if (hayTaskBlock != Double.NEGATIVE_INFINITY) {
             return hayTaskBlock;
         }
-        // Crops
+        // 作物
         for (CropTarget target : CROPS) {
-            // If crops are nearby. Do not replant cause we don't care.
+            // 如果作物在附近。不要重新种植，因为无所谓。
             double t = pickupBlockTaskOrNull(mod, target.cropBlock, target.cropItem, (blockPos -> {
                 BlockState s = mod.getWorld().getBlockState(blockPos);
                 Block b = s.getBlock();
                 if (b instanceof CropBlock) {
                     boolean isWheat = !(b instanceof PotatoesBlock || b instanceof CarrotsBlock || b instanceof BeetrootsBlock);
                     if (isWheat) {
-                        // Chunk needs to be loaded for wheat maturity to be checked.
+                        // 区块需要加载才能检查小麦成熟度。
                         if (!mod.getChunkTracker().isChunkLoaded(blockPos)) {
                             return false;
                         }
-                        // Prune if we're not mature/fully grown wheat.
+                        // 如果不是成熟/完全长成的小麦，则不选取。
                         CropBlock crop = (CropBlock) b;
                         return crop.isMature(s);
                     }
                 }
-                // Unbreakable.
+                // 无法破坏。
                 return WorldHelper.canBreak(blockPos);
-                // We're not wheat so do NOT reject.
+                // 我们不是小麦，所以不要拒绝。
             }), 96);
             if (t != Double.NEGATIVE_INFINITY) {
                 return t;
             }
         }
-        // Cooked foods
+        // 熟食
         double bestScore = 0;
         Entity bestEntity = null;
         Predicate<Entity> notBaby = entity -> entity instanceof LivingEntity livingEntity && !livingEntity.isBaby();
@@ -124,7 +135,7 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
         for (CookableFoodTarget cookable : COOKABLE_FOODS) {
             if (!mod.getEntityTracker().entityFound(cookable.mobToKill)) continue;
             Optional<Entity> nearest = mod.getEntityTracker().getClosestEntity(mod.getPlayer().getPos(), notBaby, cookable.mobToKill);
-            if (nearest.isEmpty()) continue; // ?? This crashed once?
+            if (nearest.isEmpty()) continue; // ?? 这有一次崩溃？
             int hungerPerformance = cookable.getCookedUnits();
             double sqDistance = nearest.get().squaredDistanceTo(mod.getPlayer());
             double score = (double) 100 * hungerPerformance / (sqDistance);
@@ -140,7 +151,7 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
             return bestEntity.distanceTo(player);
         }
 
-        // Sweet berries (separate from crops because they should have a lower priority than everything else cause they suck)
+        // 甜浆果（从作物中分离出来，因为它们应该比其他东西有更低的优先级，因为它们很糟糕）
         double berryPickup = pickupBlockTaskOrNull(mod, Blocks.SWEET_BERRY_BUSH, Items.SWEET_BERRIES, 96);
         if (berryPickup != Double.NEGATIVE_INFINITY) {
             return berryPickup;
@@ -149,10 +160,27 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
         return Double.POSITIVE_INFINITY;
     }
 
+    /**
+     * 拾取方块任务或空
+     * @param mod AltoClef实例
+     * @param blockToCheck 要检查的方块
+     * @param itemToGrab 要拾取的物品
+     * @param maxRange 最大范围
+     * @return 任务距离或空值
+     */
     private double pickupBlockTaskOrNull(AltoClef mod, Block blockToCheck, Item itemToGrab, double maxRange) {
         return pickupBlockTaskOrNull(mod, blockToCheck, itemToGrab, toAccept -> true, maxRange);
     }
 
+    /**
+     * 拾取方块任务或空
+     * @param mod AltoClef实例
+     * @param blockToCheck 要检查的方块
+     * @param itemToGrab 要拾取的物品
+     * @param accept 接受条件
+     * @param maxRange 最大范围
+     * @return 任务距离或空值
+     */
     private double pickupBlockTaskOrNull(AltoClef mod, Block blockToCheck, Item itemToGrab, Predicate<BlockPos> accept, double maxRange) {
         Predicate<BlockPos> acceptPlus = (blockPos) -> {
             if (!WorldHelper.canBreak(blockPos)) return false;
@@ -180,10 +208,23 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
         return Double.NEGATIVE_INFINITY;
     }
 
+    /**
+     * 拾取任务或空
+     * @param mod AltoClef实例
+     * @param itemToGrab 要拾取的物品
+     * @return 任务距离或空值
+     */
     private double pickupTaskOrNull(AltoClef mod, Item itemToGrab) {
         return pickupTaskOrNull(mod, itemToGrab, Double.POSITIVE_INFINITY);
     }
 
+    /**
+     * 拾取任务或空
+     * @param mod AltoClef实例
+     * @param itemToGrab 要拾取的物品
+     * @param maxRange 最大范围
+     * @return 任务距离或空值
+     */
     private double pickupTaskOrNull(AltoClef mod, Item itemToGrab, double maxRange) {
         Optional<ItemEntity> nearestDrop = Optional.empty();
         if (mod.getEntityTracker().itemDropped(itemToGrab)) {
@@ -194,12 +235,12 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
                 if (mod.getItemStorage().getSlotsThatCanFitInPlayerInventory(nearestDrop.get().getStack(), false).isEmpty()) {
                     Optional<Slot> slot = StorageHelper.getGarbageSlot(mod);
 
-                    // tf am I supposed to do if its empty
+                    // 如果为空我应该怎么办
                     if (slot.isPresent()) {
                         ItemStack stack = StorageHelper.getItemStackInSlot(slot.get());
                         if (ItemVer.isFood(stack.getItem())) {
-                            // calculate priority, if the item laying on the ground has lower priority than the one we are gonna throw out because of it
-                            // dont pick it up, otherwise we would get stuck in an infinite loop
+                            // 计算优先级，如果地面上的物品优先级比我们要因为这个而扔掉的物品更低
+                            // 不要拾取，否则我们会陷入无限循环
                             int inventoryCost = ItemVer.getFoodComponent(stack.getItem()).getHunger() * stack.getCount();
 
                             double hunger = 0;
@@ -208,7 +249,7 @@ public class CollectFoodPriorityCalculator extends ItemPriorityCalculator {
                             } else if (itemToGrab.equals(Items.WHEAT)) {
                                 hunger += ItemVer.getFoodComponent(Items.BREAD).getHunger() / 3d;
                             } else {
-                                mod.log("unknown food item: " + itemToGrab);
+                                mod.log("未知食物物品: " + itemToGrab);
                             }
                             int groundCost = (int) (hunger * nearestDrop.get().getStack().getCount());
 

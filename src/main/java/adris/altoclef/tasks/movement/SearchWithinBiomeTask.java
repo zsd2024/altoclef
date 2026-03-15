@@ -8,11 +8,11 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.biome.Biome;
 
 /**
- * Explores/Loads all chunks of a biome.
+ * 在生物群系中搜索/加载所有区块
  */
 public class SearchWithinBiomeTask extends SearchChunksExploreTask {
 
-    private final RegistryKey<Biome> _toSearch;
+    private final RegistryKey<Biome> _toSearch; // 要搜索的生物群系
 
     public SearchWithinBiomeTask(RegistryKey<Biome> toSearch) {
         _toSearch = toSearch;
@@ -20,6 +20,7 @@ public class SearchWithinBiomeTask extends SearchChunksExploreTask {
 
     @Override
     protected boolean isChunkWithinSearchSpace(AltoClef mod, ChunkPos pos) {
+        // 检查位置是否为指定生物群系
         return WorldVer.isBiomeAtPos(mod.getWorld(),_toSearch,pos.getStartPos().add(1,1,1));
     }
 
@@ -33,6 +34,6 @@ public class SearchWithinBiomeTask extends SearchChunksExploreTask {
 
     @Override
     protected String toDebugString() {
-        return "Searching for+within biome: " + _toSearch;
+        return "搜索生物群系: " + _toSearch;
     }
 }

@@ -17,9 +17,13 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Optional;
 
+/**
+ * 收集金锭任务
+ * 用于收集金锭，在不同维度采用不同策略: 主世界熔炼粗金，下界挖掘金矿石或用金粒合成
+ */
 public class CollectGoldIngotTask extends ResourceTask {
 
-    private final int count;
+    private final int count; // 目标金锭数量
 
     public CollectGoldIngotTask(int count) {
         super(Items.GOLD_INGOT, count);
@@ -39,9 +43,10 @@ public class CollectGoldIngotTask extends ResourceTask {
     @Override
     protected Task onResourceTick(AltoClef mod) {
         if (WorldHelper.getCurrentDimension() == Dimension.OVERWORLD) {
+            // 在主世界直接熔炼粗金
             return new SmeltInFurnaceTask(new SmeltTarget(new ItemTarget(Items.GOLD_INGOT, count), new ItemTarget(Items.RAW_GOLD, count)));
         } else if (WorldHelper.getCurrentDimension() == Dimension.NETHER) {
-            // If we have enough nuggets, craft them.
+            // 如果我们有足够的金粒，就合成金锭
             int nuggs = mod.getItemStorage().getItemCount(Items.GOLD_NUGGET);
             int nuggs_needed = count * 9 - mod.getItemStorage().getItemCount(Items.GOLD_INGOT) * 9;
             if (nuggs >= nuggs_needed) {
@@ -51,9 +56,10 @@ public class CollectGoldIngotTask extends ResourceTask {
                 }, 1);
                 return new CraftInTableTask(new RecipeTarget(Items.GOLD_INGOT, count, recipe));
             }
-            // Mine nuggets
+            // 否则挖掘金矿石获得金粒
             return new MineAndCollectTask(new ItemTarget(Items.GOLD_NUGGET, count * 9), new Block[]{Blocks.NETHER_GOLD_ORE}, MiningRequirement.WOOD);
         } else {
+            // 如果在末地，前往主世界
             return new DefaultGoToDimensionTask(Dimension.OVERWORLD);
         }
     }
@@ -70,6 +76,6 @@ public class CollectGoldIngotTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collecting " + count + " gold.";
+        return "收集 " + count + " 个金锭。";
     }
 }

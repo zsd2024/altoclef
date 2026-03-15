@@ -24,38 +24,45 @@ import net.minecraft.util.math.Vec3d;
 import java.util.LinkedList;
 import java.util.Optional;
 
+/**
+ * 解除卡顿链 - 检测并解除玩家的各种卡顿状态
+ * 包括卡在水中、卡在末地传送门框架上、进食卡顿等
+ */
 public class UnstuckChain extends SingleTaskChain {
 
-    private final LinkedList<Vec3d> posHistory = new LinkedList<>();
-    private boolean isProbablyStuck = false;
-    private int eatingTicks = 0;
-    private boolean interruptedEating = false;
-    private TimerGame shimmyTaskTimer = new TimerGame(5);
-    private boolean startedShimmying = false;
+    private final LinkedList<Vec3d> posHistory = new LinkedList<>(); // 位置历史记录
+    private boolean isProbablyStuck = false; // 标记是否可能被卡住
+    private int eatingTicks = 0; // 进食刻度计数
+    private boolean interruptedEating = false; // 标记进食是否被中断
+    private TimerGame shimmyTaskTimer = new TimerGame(5); // 摆动任务计时器
+    private boolean startedShimmying = false; // 标记是否开始摆动
 
     public UnstuckChain(TaskRunner runner) {
         super(runner);
     }
 
 
+    /**
+     * 检查是否卡在水中
+     */
     private void checkStuckInWater() {
         if (posHistory.size() < 100) return;
 
         ClientWorld world = AltoClef.getInstance().getWorld();
         ClientPlayerEntity player = AltoClef.getInstance().getPlayer();
 
-        // is not in water
+        // 不在水中
         if (!world.getBlockState(player.getSteppingPos()).getBlock().equals(Blocks.WATER)
                 && !world.getBlockState(player.getSteppingPos().down()).getBlock().equals(Blocks.WATER))
             return;
 
-        // everything should be fine
+        // 一切应该正常
         if (player.isOnGround()) {
             posHistory.clear();
             return;
         }
 
-        // do NOT do anything if underwater
+        // 如果在水下则不要做任何事情
         if (player.getAir() < player.getMaxAir()) {
             return;
         }
@@ -72,6 +79,9 @@ public class UnstuckChain extends SingleTaskChain {
         setTask(new GetOutOfWaterTask());
     }
 
+    /**
+     * 检查是否卡在细雪中
+     */
     private void checkStuckInPowderedSnow() {
         AltoClef mod = AltoClef.getInstance();
 
@@ -100,20 +110,27 @@ public class UnstuckChain extends SingleTaskChain {
         }
     }
 
+    /**
+     * 检查是否卡在末地传送门框架上
+     * @param mod AltoClef实例
+     */
     private void checkStuckOnEndPortalFrame(AltoClef mod) {
         BlockState state = mod.getWorld().getBlockState(mod.getPlayer().getSteppingPos());
 
-        // if we are standing on an end portal frame that is NOT filled, get off otherwise we will get stuck
+        // 如果我们站在未填充的末地传送门框架上，离开否则我们会卡住
         if (state.getBlock() == Blocks.END_PORTAL_FRAME && !state.get(EndPortalFrameBlock.EYE)) {
             if (!mod.getFoodChain().isTryingToEat()) {
                 isProbablyStuck = true;
 
-                // for now let's just hope the other mechanisms will take care of cases where moving forward will get us in danger
+                // 目前让我们希望其他机制能处理前进会让我们陷入危险的情况
                 mod.getInputControls().tryPress(Input.MOVE_FORWARD);
             }
         }
     }
 
+    /**
+     * 检查进食故障
+     */
     private void checkEatingGlitch() {
         FoodChain foodChain = AltoClef.getInstance().getFoodChain();
 
@@ -129,7 +146,7 @@ public class UnstuckChain extends SingleTaskChain {
         }
 
         if (eatingTicks > 7*20) {
-            Debug.logMessage("the bot is probably stuck trying to eat... resetting action");
+            Debug.logMessage("机器人可能在尝试进食时卡住了...重置动作");
             foodChain.shouldStop(true);
 
             eatingTicks = 0;
@@ -187,11 +204,11 @@ public class UnstuckChain extends SingleTaskChain {
 
     @Override
     protected void onTaskFinish(AltoClef mod) {
-
+        // 任务完成时无需特殊处理
     }
 
     @Override
     public String getName() {
-        return "Unstuck Chain";
+        return "解除卡顿链";
     }
 }

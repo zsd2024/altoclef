@@ -12,9 +12,15 @@ import net.minecraft.item.Item;
 
 import java.util.function.Function;
 
+/**
+ * 使用匹配木板制作任务
+ * 用于处理使用木板作为主要材料的合成任务，支持将原木转换为木板
+ */
 public class CraftWithMatchingPlanksTask extends CraftWithMatchingMaterialsTask {
 
+    // 可视化目标物品
     private final ItemTarget _visualTarget;
+    // 获取目标物品的函数
     private final Function<ItemHelper.WoodItems, Item> _getTargetItem;
 
     public CraftWithMatchingPlanksTask(Item[] validTargets, Function<ItemHelper.WoodItems, Item> getTargetItem, CraftingRecipe recipe, boolean[] sameMask, int count) {
@@ -26,7 +32,7 @@ public class CraftWithMatchingPlanksTask extends CraftWithMatchingMaterialsTask 
 
     @Override
     protected int getExpectedTotalCountOfSameItem(AltoClef mod, Item sameItem) {
-        // Include logs
+        // 包括原木（每块原木可以制作4个木板）
         return mod.getItemStorage().getItemCount(sameItem) + mod.getItemStorage().getItemCount(ItemHelper.planksToLog(sameItem)) * 4;
     }
 
@@ -34,19 +40,21 @@ public class CraftWithMatchingPlanksTask extends CraftWithMatchingMaterialsTask 
     protected Task getSpecificSameResourceTask(AltoClef mod, Item[] toGet) {
         for (Item plankToGet : toGet) {
             Item log = ItemHelper.planksToLog(plankToGet);
-            // Convert logs to planks
+            // 将原木转换为木板
             if (mod.getItemStorage().getItemCount(log) >= 1) {
                 return TaskCatalogue.getItemTask(plankToGet, 1);//new CraftInInventoryTask(new ItemTarget(plankToGet, 1), CraftingRecipe.newShapedRecipe("planks", new ItemTarget[]{new ItemTarget(log, 1), empty, empty, empty}, 4), false, true);
             }
         }
-        Debug.logError("CraftWithMatchingPlanks: Should never happen!");
+        Debug.logError("CraftWithMatchingPlanks: 不应该发生！");
         return null;
     }
 
     @Override
     protected Item getSpecificItemCorrespondingToMajorityResource(Item majority) {
+        // 遍历所有木材物品，找到匹配木板的类型
         for (ItemHelper.WoodItems woodItems : ItemHelper.getWoodItems()) {
             if (woodItems.planks == majority) {
+                // 返回对应的目标物品
                 return _getTargetItem.apply(woodItems);
             }
         }
@@ -64,7 +72,7 @@ public class CraftWithMatchingPlanksTask extends CraftWithMatchingMaterialsTask 
 
     @Override
     protected String toDebugStringName() {
-        return "Crafting: " + _visualTarget;
+        return "制作: " + _visualTarget;
     }
 
 

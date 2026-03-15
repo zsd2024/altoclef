@@ -23,26 +23,31 @@ import net.minecraft.util.math.Vec3i;
 import java.util.Arrays;
 
 /**
- * Places obsidian at a position using buckets and a cast.
+ * 使用桶和铸造法放置黑曜石任务 - 通过放置岩浆和水来生成黑曜石
  */
 public class PlaceObsidianBucketTask extends Task {
 
+    // 铸造框架的位置偏移数组，用于构建放置岩浆和水所需的结构
     public static final Vec3i[] CAST_FRAME = new Vec3i[]{
-            new Vec3i(0, -1, 0),
-            new Vec3i(0, -1, -1),
-            new Vec3i(0, -1, 1),
-            new Vec3i(-1, -1, 0),
-            new Vec3i(1, -1, 0),
-            new Vec3i(0, 0, -1),
-            new Vec3i(0, 0, 1),
-            new Vec3i(-1, 0, 0),
-            new Vec3i(1, 0, 0),
-            new Vec3i(1, 1, 0)
+            new Vec3i(0, -1, 0),    // 下方中心
+            new Vec3i(0, -1, -1),   // 下方后方
+            new Vec3i(0, -1, 1),    // 下方前方
+            new Vec3i(-1, -1, 0),   // 下方左侧
+            new Vec3i(1, -1, 0),    // 下方右侧
+            new Vec3i(0, 0, -1),    // 同层后方
+            new Vec3i(0, 0, 1),     // 同层前方
+            new Vec3i(-1, 0, 0),    // 同层左侧
+            new Vec3i(1, 0, 0),     // 同层右侧
+            new Vec3i(1, 1, 0)      // 上方右侧
     };
+    // 移动进度检查器，用于检测任务是否卡住
     private final MovementProgressChecker _progressChecker = new MovementProgressChecker();
+    // 目标放置位置
     private final BlockPos _pos;
 
+    // 当前需要放置框架的目标位置
     private BlockPos _currentCastTarget;
+    // 当前需要破坏的目标位置
     private BlockPos _currentDestroyTarget;
 
     public PlaceObsidianBucketTask(BlockPos pos) {
@@ -53,86 +58,87 @@ public class PlaceObsidianBucketTask extends Task {
     protected void onStart() {
         BotBehaviour botBehaviour = AltoClef.getInstance().getBehaviour();
 
-        // Push the behaviour onto the behaviour stack
+        // 将行为压入行为栈
         botBehaviour.push();
 
-        // Avoid breaking blocks within the specified conditions
+        // 避免破坏铸造框架内的方块
         botBehaviour.avoidBlockBreaking(this::isBlockInCastFrame);
 
-        // Avoid placing blocks within the specified conditions
+        // 避免在岩浆或水位置放置方块
         botBehaviour.avoidBlockPlacing(this::isBlockInCastWaterOrLava);
 
-        // Reset the progress checker
+        // 重置进度检查器
         _progressChecker.reset();
 
-        // Logging statements for debugging
-        Debug.logInternal("Started onStart method");
-        Debug.logInternal("Behaviour pushed");
-        Debug.logInternal("Avoiding block breaking");
-        Debug.logInternal("Avoiding block placing");
-        Debug.logInternal("Progress checker reset");
+        Debug.logInternal("开始执行onStart方法");
+        Debug.logInternal("行为已压入栈");
+        Debug.logInternal("避免破坏方块");
+        Debug.logInternal("避免放置方块");
+        Debug.logInternal("进度检查器已重置");
     }
 
-    private boolean isBlockInCastFrame(BlockPos block) {
+    /**
+ * 检查方块位置是否在铸造框架内
+ * @param block 要检查的方块位置
+ * @return 如果方块位置在铸造框架内则返回true
+ */
+private boolean isBlockInCastFrame(BlockPos block) {
         return Arrays.stream(PlaceObsidianBucketTask.CAST_FRAME)
                 .map(_pos::add)
                 .anyMatch(block::equals);
     }
 
     /**
-     * Checks if a given block position is either the same as the current position or the position above it.
-     *
-     * @param blockPos The block position to check
-     * @return True if the block position is the same as the current position or the position above it, false otherwise
-     */
+ * 检查给定的方块位置是否是当前位置或其上方位置
+ * @param blockPos 要检查的方块位置
+ * @return 如果方块位置是当前位置或其上方位置则返回true，否则返回false
+ */
     private boolean isBlockInCastWaterOrLava(BlockPos blockPos) {
-        // Calculate the position above the current position
+        // 计算当前位置上方的位置
         BlockPos waterTarget = _pos.up();
 
-        // Logging statement for debugging
         Debug.logInternal("blockPos: " + blockPos);
         Debug.logInternal("waterTarget: " + waterTarget);
 
-        // Check if the block position is either the same as the current position or the position above it
+        // 检查方块位置是否是当前位置或其上方位置
         return blockPos.equals(_pos) || blockPos.equals(waterTarget);
     }
 
     /**
-     * This method is called periodically to perform a specific task.
-     * It handles the logic for casting a spell using lava and water buckets.
-     *
-     * @return The next task to be executed
+     * 周期性执行的任务逻辑
+     * 处理使用岩浆桶和水桶进行黑曜石生成的逻辑
+     * @return 要执行的下一个任务
      */
     @Override
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Reset progress if pathing
+        // 如果正在寻路则重置进度
         if (mod.getClientBaritone().getPathingBehavior().isPathing()) {
             _progressChecker.reset();
         }
 
-        // Clear leftover water
+        // 清除多余的水
         if (mod.getBlockScanner().isBlockAtPosition(_pos, Blocks.OBSIDIAN) && mod.getBlockScanner().isBlockAtPosition(_pos.up(), Blocks.WATER)) {
             return new ClearLiquidTask(_pos.up());
         }
 
-        // Make sure we have a water bucket
+        // 确保我们有一个水桶
         if (!mod.getItemStorage().hasItem(Items.WATER_BUCKET)) {
             _progressChecker.reset();
             return TaskCatalogue.getItemTask(Items.WATER_BUCKET, 1);
         }
 
-        // Make sure we have a lava bucket
+        // 确保我们有一个岩浆桶
         if (!mod.getItemStorage().hasItem(Items.LAVA_BUCKET)) {
-            // The only excuse is that we have lava at our position.
+            // 唯一的例外是我们当前位置有岩浆
             if (!mod.getBlockScanner().isBlockAtPosition(_pos, Blocks.LAVA)) {
                 _progressChecker.reset();
                 return TaskCatalogue.getItemTask(Items.LAVA_BUCKET, 1);
             }
         }
 
-        // Check progress
+        // 检查进度
         if (!_progressChecker.check(mod)) {
             mod.getClientBaritone().getPathingBehavior().forceCancel();
             mod.getBlockScanner().requestBlockUnreachable(_pos);
@@ -140,7 +146,7 @@ public class PlaceObsidianBucketTask extends Task {
             return new TimeoutWanderTask(5);
         }
 
-        // Build cast frame if not already built
+        // 如果尚未构建，则构建铸造框架
         if (_currentCastTarget != null) {
             if (WorldHelper.isSolidBlock(_currentCastTarget)) {
                 _currentCastTarget = null;
@@ -151,7 +157,7 @@ public class PlaceObsidianBucketTask extends Task {
             }
         }
 
-        // Destroy block if needed
+        // 如果需要则破坏方块
         if (_currentDestroyTarget != null) {
             if (!WorldHelper.isSolidBlock(_currentDestroyTarget)) {
                 _currentDestroyTarget = null;
@@ -160,56 +166,56 @@ public class PlaceObsidianBucketTask extends Task {
             }
         }
 
-        // Build the cast frame if not already built
+        // 如果尚未构建，则构建铸造框架
         if (_currentCastTarget != null && WorldHelper.isSolidBlock(_currentCastTarget)) {
-            // Current cast frame already built.
+            // 当前铸造框架已构建完成
             _currentCastTarget = null;
         }
         for (Vec3i castPosRelative : CAST_FRAME) {
             BlockPos castPos = _pos.add(castPosRelative);
             if (!WorldHelper.isSolidBlock(castPos)) {
                 _currentCastTarget = castPos;
-                Debug.logInternal("Building cast frame...");
+                Debug.logInternal("正在构建铸造框架...");
                 return null;
             }
         }
 
-        // Place lava
+        // 放置岩浆
         if (mod.getWorld().getBlockState(_pos).getBlock() != Blocks.LAVA) {
-            // Don't place lava at our position!
-            // Would lead to an embarrassing death.
+            // 不要在我们自己的位置放置岩浆！
+            // 会导致尴尬的死亡
             BlockPos targetPos = _pos.add(-1,1,0);
             if (!mod.getPlayer().getBlockPos().equals(targetPos) && mod.getItemStorage().hasItem(Items.LAVA_BUCKET)) {
-                Debug.logInternal("Positioning player before placing lava...");
+                Debug.logInternal("放置岩浆前调整玩家位置...");
                 return new GetToBlockTask(targetPos, false);
             }
             if (WorldHelper.isSolidBlock(_pos)) {
-                Debug.logInternal("Clearing space around lava...");
+                Debug.logInternal("清理岩浆周围的空隙...");
                 _currentDestroyTarget = _pos;
                 return null;
             }
-            // Clear the upper two as well, to make placing more reliable.
+            // 同时清理上方两格，使放置更可靠
             if (WorldHelper.isSolidBlock(_pos.up())) {
-                Debug.logInternal("Clearing space around lava...");
+                Debug.logInternal("清理岩浆周围的空隙...");
                 _currentDestroyTarget = _pos.up();
                 return null;
             }
             if (WorldHelper.isSolidBlock(_pos.up(2))) {
-                Debug.logInternal("Clearing space around lava...");
+                Debug.logInternal("清理岩浆周围的空隙...");
                 _currentDestroyTarget = _pos.up(2);
                 return null;
             }
-            Debug.logInternal("Placing lava for cast...");
+            Debug.logInternal("放置岩浆进行铸造...");
             return new InteractWithBlockTask(new ItemTarget(Items.LAVA_BUCKET, 1), Direction.WEST, _pos.add(1,0,0), false);
         }
-        // Lava placed, Now, place water.
+        // 岩浆已放置，现在放置水
         BlockPos waterCheck = _pos.up();
         if (mod.getWorld().getBlockState(waterCheck).getBlock() != Blocks.WATER) {
-            Debug.logInternal("Placing water for cast...");
-            // Get to position to avoid weird stuck scenario
+            Debug.logInternal("放置水进行铸造...");
+            // 调整位置以避免卡住的情况
             BlockPos targetPos = _pos.add(-1,1,0);
             if (!mod.getPlayer().getBlockPos().equals(targetPos) && mod.getItemStorage().hasItem(Items.WATER_BUCKET)) {
-                Debug.logInternal("Positioning player before placing water...");
+                Debug.logInternal("放置水前调整玩家位置...");
                 return new GetToBlockTask(targetPos, false);
             }
             if (WorldHelper.isSolidBlock(waterCheck)) {
@@ -226,45 +232,41 @@ public class PlaceObsidianBucketTask extends Task {
     }
 
     /**
-     * This method is called when the task is interrupted.
-     *
-     * @param interruptTask The task that caused the interruption.
+     * 任务被中断时调用此方法
+     * @param interruptTask 导致中断的任务
      */
     @Override
     protected void onStop(Task interruptTask) {
-        // Check if the mod's behaviour is not null
+        // 检查模组行为是否不为空
         if (AltoClef.getInstance().getBehaviour() != null) {
-            // Pop the behaviour from the stack
+            // 从栈中弹出行为
             AltoClef.getInstance().getBehaviour().pop();
-            // Log a message indicating that the behaviour was popped
-            Debug.logInternal("Behaviour popped.");
+            Debug.logInternal("行为已弹出栈。");
         }
     }
 
     /**
-     * Check if the current task is finished.
-     * The task is considered finished if the block at the specified position is obsidian
-     * and there is no water block above it.
-     *
-     * @return True if the task is finished, False otherwise.
+     * 检查当前任务是否完成
+     * 当指定位置的方块是黑曜石且其上方没有水方块时，任务被认为已完成
+     * @return 任务完成返回true，否则返回false
      */
     @Override
     public boolean isFinished() {
-        // Get the BlockTracker instance from the mod
+        // 从模组获取BlockTracker实例
         BlockScanner blockTracker = AltoClef.getInstance().getBlockScanner();
 
-        // Get the position of the block to check
+        // 获取要检查的方块位置
         BlockPos pos = _pos;
 
-        // Check if the block at the specified position is obsidian
+        // 检查指定位置的方块是否是黑曜石
         boolean isObsidian = blockTracker.isBlockAtPosition(pos, Blocks.OBSIDIAN);
         Debug.logInternal("isObsidian: " + isObsidian);
 
-        // Check if there is no water block above the specified position
+        // 检查指定位置上方是否没有水方块
         boolean isNotWaterAbove = !blockTracker.isBlockAtPosition(pos.up(), Blocks.WATER);
         Debug.logInternal("isNotWaterAbove: " + isNotWaterAbove);
 
-        // The task is considered finished if the block is obsidian and there is no water above
+        // 当方块是黑曜石且上方没有水时，任务被认为已完成
         boolean isFinished = isObsidian && isNotWaterAbove;
         Debug.logInternal("isFinished: " + isFinished);
 
@@ -272,43 +274,36 @@ public class PlaceObsidianBucketTask extends Task {
     }
 
     /**
-     * Checks if the given task is equal to this PlaceObsidianBucketTask.
-     * Two PlaceObsidianBucketTasks are considered equal if their positions are equal.
-     * Overrides the isEqual() method from the parent class.
-     *
-     * @param other the task to compare with
-     * @return true if the tasks are equal, false otherwise
+     * 检查给定任务是否与此PlaceObsidianBucketTask相等
+     * 当两个PlaceObsidianBucketTask的位置相等时，它们被认为是相等的
+     * 重写父类的isEqual()方法
+     * @param other 要比较的任务
+     * @return 任务相等返回true，否则返回false
      */
     @Override
     protected boolean isEqual(Task other) {
-        // Check if the other task is an instance of PlaceObsidianBucketTask
+        // 检查另一个任务是否是PlaceObsidianBucketTask的实例
         if (other instanceof PlaceObsidianBucketTask task) {
-            // Check if the positions are equal
+            // 检查位置是否相等
             boolean isEqual = task.getPos().equals(getPos());
-            // Log the result of the comparison
             Debug.logInternal("isEqual: " + isEqual);
-            // Return the result
             return isEqual;
         }
-        // Log that the tasks are not equal
         Debug.logInternal("isEqual: false");
-        // Return false
         return false;
     }
 
     @Override
     protected String toDebugString() {
-        return "Placing obsidian at " + _pos + " with a cast";
+        return "正在 " + _pos + " 位置通过铸造法放置黑曜石";
     }
 
     /**
-     * Retrieves the position of the object.
-     *
-     * @return The position of the object.
+     * 获取对象的位置
+     * @return 对象的位置
      */
     public BlockPos getPos() {
-        // Added logging statement for debugging
-        Debug.logInternal("Entering getPos()");
+        Debug.logInternal("进入getPos()");
 
         return _pos;
     }

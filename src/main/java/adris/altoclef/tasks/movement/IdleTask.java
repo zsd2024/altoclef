@@ -5,7 +5,7 @@ import adris.altoclef.Playground;
 import adris.altoclef.tasksystem.Task;
 
 /**
- * Do nothing.
+ * 空闲任务 - 不执行任何操作
  */
 public class IdleTask extends Task {
     @Override
@@ -15,7 +15,7 @@ public class IdleTask extends Task {
 
     @Override
     protected Task onTick() {
-        // Do nothing except maybe test code
+        // 什么都不做，除了可能测试代码
         Playground.IDLE_TEST_TICK_FUNCTION(AltoClef.getInstance());
         return null;
     }
@@ -27,7 +27,7 @@ public class IdleTask extends Task {
 
     @Override
     public boolean isFinished() {
-        // Never finish
+        // 永不完結
         return false;
     }
 
@@ -38,6 +38,6 @@ public class IdleTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Idle";
+        return "空闲";
     }
 }

@@ -14,12 +14,16 @@ import net.minecraft.item.Item;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+/**
+ * 收集木板任务
+ * 用于收集木板，优先使用原木合成，否则挖掘原木或木板
+ */
 public class CollectPlanksTask extends ResourceTask {
 
-    private final Item[] _planks;
-    private final Item[] _logs;
-    private final int _targetCount;
-    private boolean _logsInNether;
+    private final Item[] _planks; // 木板类型数组
+    private final Item[] _logs; // 原木类型数组
+    private final int _targetCount; // 目标数量
+    private boolean _logsInNether; // 原木是否在下界
 
     public CollectPlanksTask(Item[] planks, Item[] logs, int count, boolean logsInNether) {
         super(new ItemTarget(planks, count));
@@ -41,6 +45,11 @@ public class CollectPlanksTask extends ResourceTask {
         this(plank, ItemHelper.planksToLog(plank), count);
     }
 
+    /**
+     * 生成木板合成配方
+     * @param logs 原木类型数组
+     * @return 木板合成配方
+     */
     private static CraftingRecipe generatePlankRecipe(Item[] logs) {
         return CraftingRecipe.newShapedRecipe(
                 "planks",
@@ -67,13 +76,13 @@ public class CollectPlanksTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
 
-        // Craft when we can
+        // 当可以合成时进行合成
         int totalInventoryPlankCount = mod.getItemStorage().getItemCount(_planks);
         int potentialPlanks = totalInventoryPlankCount + mod.getItemStorage().getItemCount(_logs) * 4;
         if (potentialPlanks >= _targetCount) {
@@ -82,28 +91,28 @@ public class CollectPlanksTask extends ResourceTask {
                 if (count > 0) {
                     Item plankCheck = ItemHelper.logToPlanks(logCheck);
                     if (plankCheck == null) {
-                        Debug.logError("Invalid/Un-convertable log: " + logCheck + " (failed to find corresponding plank)");
+                        Debug.logError("无效/无法转换的原木: " + logCheck + " (找不到对应的木板)");
                     }
                     int plankCount = mod.getItemStorage().getItemCount(plankCheck);
                     int otherPlankCount = totalInventoryPlankCount - plankCount;
                     int targetTotalPlanks = Math.min(count * 4 + plankCount, _targetCount - otherPlankCount);
-                    setDebugState("We have " + logCheck + ", crafting " + targetTotalPlanks + " planks.");
+                    setDebugState("我们有 " + logCheck + "，合成 " + targetTotalPlanks + " 个木板。");
                     return new CraftInInventoryTask(new RecipeTarget(plankCheck, targetTotalPlanks, generatePlankRecipe(_logs)));
                 }
             }
         }
 
-        // Collect planks and logs
+        // 收集木板和原木
         ArrayList<ItemTarget> blocksTomine = new ArrayList<>(2);
         blocksTomine.add(new ItemTarget(_logs));
-        // Ignore planks if we're told to.
+        // 如果被指示则忽略木板
         if (!mod.getBehaviour().exclusivelyMineLogs()) {
-            // TODO: Add planks back in, but with a heuristic check (so we don't go for abandoned mineshafts)
+            // TODO: 将木板加回来，但使用启发式检查（这样我们不会去废弃矿井)
             //blocksTomine.add(new ItemTarget(ItemUtil.PLANKS));
         }
 
         ResourceTask mineTask = new MineAndCollectTask(blocksTomine.toArray(ItemTarget[]::new), MiningRequirement.HAND);
-        // Kinda jank
+        // 有点笨拙
         if (_logsInNether) {
             mineTask.forceDimension(Dimension.NETHER);
         }
@@ -112,7 +121,7 @@ public class CollectPlanksTask extends ResourceTask {
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -122,9 +131,13 @@ public class CollectPlanksTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Crafting " + _targetCount + " planks " + Arrays.toString(_planks);
+        return "制作 " + _targetCount + " 个木板 " + Arrays.toString(_planks);
     }
 
+    /**
+     * 设置原木在下界
+     * @return 当前任务实例
+     */
     public CollectPlanksTask logsInNether() {
         _logsInNether = true;
         return this;

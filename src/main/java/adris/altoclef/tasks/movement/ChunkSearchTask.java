@@ -17,40 +17,63 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Use to walk through and search interconnected structures or biomes.
+ * 用于遍历和搜索互连结构或生物群系的任务
  * <p>
- * Example use cases:
- * - Search a dark forest for a woodland mansion and avoid going to different biomes
- * - Search a nether fortress for blaze spawners
- * - Search a stronghold for the portal
+ * 使用示例：
+ * - 在黑森林中搜索林地府邸，避免前往不同生物群系
+ * - 在下界要塞中搜索烈焰人刷怪笼
+ * - 在要塞中搜索传送门
  */
 abstract class ChunkSearchTask extends Task {
 
+    // 起始点
     private final BlockPos _startPoint;
+    // 搜索互斥锁
     private final Object _searchMutex = new Object();
-    // We're either searched or will be searched later.
+    // 我们已经搜索过或稍后将被搜索的区块
     private final Set<ChunkPos> _consideredAlready = new HashSet<>();
-    // We definitely were searched before.
+    // 我们确实已经搜索过的区块
     private final Set<ChunkPos> _searchedAlready = new HashSet<>();
+    // 稍后搜索的区块列表
     private final ArrayList<ChunkPos> _searchLater = new ArrayList<>();
+    // 刚加载的区块列表
     private final ArrayList<ChunkPos> _justLoaded = new ArrayList<>();
+    // 是否是首次运行
     private boolean _first = true;
+    // 是否已完成
     private boolean _finished = false;
 
+    // 区块加载事件订阅
     private Subscription<ChunkLoadEvent> _onChunkLoad;
 
+    /**
+     * 构造函数，使用方块位置作为起始点
+     * @param startPoint 起始点
+     */
     public ChunkSearchTask(BlockPos startPoint) {
         _startPoint = startPoint;
     }
 
+    /**
+     * 构造函数，使用区块位置
+     * @param chunkPos 区块位置
+     */
     public ChunkSearchTask(ChunkPos chunkPos) {
         this(chunkPos.getStartPos().add(1,1,1));
     }
 
+    /**
+     * 获取已搜索的区块集合
+     * @return 返回已搜索的区块集合
+     */
     public Set<ChunkPos> getSearchedChunks() {
         return _searchedAlready;
     }
 
+    /**
+     * 检查是否已完成搜索
+     * @return 如果已完成返回true
+     */
     public boolean finished() {
         return _finished;
     }
@@ -68,6 +91,7 @@ abstract class ChunkSearchTask extends Task {
             }
         }
 
+        // 订阅区块加载事件
         _onChunkLoad = EventBus.subscribe(ChunkLoadEvent.class, evt -> {
             WorldChunk chunk = evt.chunk;
             if (chunk == null) return;
@@ -82,16 +106,16 @@ abstract class ChunkSearchTask extends Task {
     @Override
     protected Task onTick() {
 
-        // WTF This is a horrible idea.
-        // Backup in case if chunk search fails?
+        // WTF 这是个糟糕的想法。
+        // 区块搜索失败时的备份？
         //onChunkLoad((WorldChunk) mod.getWorld().getChunk(mod.getPlayer().getBlockPos()));
 
         synchronized (_searchMutex) {
-            // Search all items from _justLoaded that we ought to search.
+            // 搜索所有从 _justLoaded 中应当搜索的项目
             if (!_justLoaded.isEmpty()) {
                 for (ChunkPos justLoaded : _justLoaded) {
                     if (_searchLater.contains(justLoaded)) {
-                        // Search this one. If we succeed, we no longer need to search.
+                        // 搜索这个。如果成功，我们不再需要搜索。
                         if (trySearchChunk(AltoClef.getInstance(), justLoaded)) {
                             _searchLater.remove(justLoaded);
                         }
@@ -101,12 +125,12 @@ abstract class ChunkSearchTask extends Task {
             _justLoaded.clear();
         }
 
-        // Now that we have an updated map, go to the nearest
+        // 现在我们有了更新的地图，前往最近的区块
         ChunkPos closest = getBestChunk(AltoClef.getInstance(), _searchLater);
 
         if (closest == null) {
             _finished = true;
-            Debug.logWarning("Failed to find any chunks to go to. If we finish, that means we scanned all possible chunks.");
+            Debug.logWarning("未能找到要前往的任何区块。如果我们完成，这意味着我们扫描了所有可能的区块。");
             //Debug.logMessage("wtf??????: " + _finished);
             return null;
         }
@@ -114,7 +138,13 @@ abstract class ChunkSearchTask extends Task {
         return new GetToChunkTask(closest);
     }
 
-    // Virtual
+    // 虚方法
+    /**
+     * 获取最佳的区块
+     * @param mod AltoClef实例
+     * @param chunks 区块列表
+     * @return 返回最佳的区块位置
+     */
     protected ChunkPos getBestChunk(AltoClef mod, List<ChunkPos> chunks) {
         double lowestScore = Double.POSITIVE_INFINITY;
         ChunkPos bestChunk = null;
@@ -153,15 +183,20 @@ abstract class ChunkSearchTask extends Task {
         return false;
     }
 
+    /**
+     * 搜索区块或将其加入队列进行搜索
+     * @param mod AltoClef实例
+     * @param pos 区块位置
+     */
     private void searchChunkOrQueueSearch(AltoClef mod, ChunkPos pos) {
-        // Don't search/consider this chunk again.
+        // 不要再次搜索/考虑这个区块。
         if (_consideredAlready.contains(pos)) {
             return;
         }
         _consideredAlready.add(pos);
 
         if (!trySearchChunk(mod, pos)) {
-            // We'll check it later if we haven't searched it.
+            // 如果我们还没有搜索过，我们会稍后检查它。
             if (!_searchedAlready.contains(pos)) {
                 _searchLater.add(pos);
             }
@@ -169,21 +204,20 @@ abstract class ChunkSearchTask extends Task {
     }
 
     /**
-     * Try to search the chunk.
+     * 尝试搜索区块。
      *
-     * @param pos chunk to search
-     * @return true if we're DONE searching this chunk
-     * false if we need to SEARCH IT IN PERSON
+     * @param pos 要搜索的区块
+     * @return 如果我们已完成搜索这个区块则返回true，如果需要亲自搜索则返回false
      */
     private boolean trySearchChunk(AltoClef mod, ChunkPos pos) {
-        // Do NOT search later.
+        // 不要稍后搜索。
         if (_searchedAlready.contains(pos)) {
             return true;
         }
         if (mod.getChunkTracker().isChunkLoaded(pos)) {
             _searchedAlready.add(pos);
             if (isChunkPartOfSearchSpace(mod, pos)) {
-                // This chunk may lead to more, so either search or enqueue its neighbors.
+                // 这个区块可能会通向更多地方，所以搜索或加入邻居到队列
                 searchChunkOrQueueSearch(mod, new ChunkPos(pos.x + 1, pos.z));
                 searchChunkOrQueueSearch(mod, new ChunkPos(pos.x - 1, pos.z));
                 searchChunkOrQueueSearch(mod, new ChunkPos(pos.x, pos.z + 1));
@@ -194,7 +228,18 @@ abstract class ChunkSearchTask extends Task {
         return false;
     }
 
+    /**
+     * 检查区块是否属于搜索空间
+     * @param mod AltoClef实例
+     * @param pos 区块位置
+     * @return 如果属于搜索空间返回true
+     */
     protected abstract boolean isChunkPartOfSearchSpace(AltoClef mod, ChunkPos pos);
 
+    /**
+     * 检查区块搜索任务是否相等
+     * @param other 其他区块搜索任务
+     * @return 如果相等返回true
+     */
     protected abstract boolean isChunkSearchEqual(ChunkSearchTask other);
 }

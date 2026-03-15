@@ -8,16 +8,16 @@ import adris.altoclef.util.Pair;
 import java.util.function.Function;
 
 /**
- * most general way to create priority tasks (basically all other subclasses could be replaced by this).
- * Returns a task and a priority given a PriorityCalculator and TaskProvider
- * (kinda works like the old GatherResource I guess)
+ * 动作优先级任务 - 创建优先级任务的最通用方式（基本上其他所有子类都可以用这个替换）。
+ * 给定优先级计算器和任务提供器，返回一个任务和优先级
+ * （有点像旧的GatherResource，我猜）
  */
 public class ActionPriorityTask extends PriorityTask {
 
 
-    private final TaskAndPriorityProvider taskAndPriorityProvider;
+    private final TaskAndPriorityProvider taskAndPriorityProvider; // 任务和优先级提供器
 
-    // just for making the debug string
+    // 仅用于生成调试字符串
     private Task lastTask = null;
 
     public ActionPriorityTask(TaskProvider taskProvider, PriorityCalculator priorityCalculator) {
@@ -48,20 +48,27 @@ public class ActionPriorityTask extends PriorityTask {
 
     @Override
     public Task getTask(AltoClef mod) {
+        // 获取任务和优先级对，返回任务部分
         lastTask = getTaskAndPriority(mod).getLeft();
         return lastTask;
     }
 
     @Override
     public String getDebugString() {
-        return "Performing an action: "+lastTask;
+        return "执行一个动作: "+lastTask;
     }
 
     @Override
     protected double getPriority(AltoClef mod) {
+        // 获取任务和优先级对，返回优先级部分
         return getTaskAndPriority(mod).getRight();
     }
 
+    /**
+     * 获取任务和优先级
+     * @param mod AltoClef实例
+     * @return 任务和优先级的配对
+     */
     private Pair<Task, Double> getTaskAndPriority(AltoClef mod) {
         Pair<Task, Double> pair = taskAndPriorityProvider.getTaskAndPriority(mod);
         if (pair == null) {
@@ -77,11 +84,17 @@ public class ActionPriorityTask extends PriorityTask {
     }
 
 
+    /**
+     * 任务提供器接口
+     */
     public interface TaskProvider {
         Task getTask(AltoClef mod);
     }
 
 
+    /**
+     * 任务和优先级提供器接口
+     */
     public interface TaskAndPriorityProvider {
         Pair<Task, Double> getTaskAndPriority(AltoClef mod);
     }

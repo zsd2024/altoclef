@@ -8,11 +8,14 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.Arrays;
 
+/**
+ * 远离位置任务 - 远离指定位置指定距离
+ */
 public class RunAwayFromPositionTask extends CustomBaritoneGoalTask {
 
-    private final BlockPos[] _dangerBlocks;
-    private final double _distance;
-    private final Integer _maintainY;
+    private final BlockPos[] _dangerBlocks; // 危险方块位置数组
+    private final double _distance; // 远离距离
+    private final Integer _maintainY; // 维持Y坐标
 
     public RunAwayFromPositionTask(double distance, BlockPos... toRunAwayFrom) {
         this(distance, null, toRunAwayFrom);
@@ -26,6 +29,7 @@ public class RunAwayFromPositionTask extends CustomBaritoneGoalTask {
 
     @Override
     protected Goal newGoal(AltoClef mod) {
+        // 创建远离目标
         return new GoalRunAway(_distance, _maintainY, _dangerBlocks);
     }
 
@@ -39,6 +43,6 @@ public class RunAwayFromPositionTask extends CustomBaritoneGoalTask {
 
     @Override
     protected String toDebugString() {
-        return "Running away from " + Arrays.toString(_dangerBlocks);
+        return "远离 " + Arrays.toString(_dangerBlocks);
     }
 }

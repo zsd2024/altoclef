@@ -26,65 +26,65 @@ import java.util.HashSet;
 @SuppressWarnings("ALL")
 @Deprecated
 /**
- * NOTE: This is unreliable, I'd give it roughly 70% odds of success at best.
- * The problem here is that the water source ocassionally spills everywhere, and this causes
- * Baritone to get stuck
- * Use "ConstructNetherPortalBucketTask" which is much more methodical and doesn't have this pitfall.
+ * 注意：这是不可靠的，我认为最多有大约70%的成功几率。
+ * 这里的问题是水源偶尔会到处溢出，这会导致
+ * Baritone卡住
+ * 使用"ConstructNetherPortalBucketTask"，它更有条理且没有这个陷阱。
  */
 public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem.Task {
 
-    // The "portalable" region includes the portal (1 x 6 x 4 structure) and an outer buffer for its construction and water bullshit.
-    // The "portal origin relative to region" corresponds to the portal origin with respect to the "portalable" region (see _portalOrigin).
-    // This can only really be explained visually, sorry!
+    // "可建造传送门"区域包含传送门(1 x 6 x 4结构)及其构造和水相关操作的外层缓冲区。
+    // "区域相对传送门原点"对应于相对于"可建造传送门"区域的传送门原点(参见_portalOrigin)。
+    // 这只能通过视觉方式解释，抱歉！
     private static final Vec3i PORTALABLE_REGION_SIZE = new Vec3i(4, 6, 6);
-    // Destroy these blocks too.
+    // 也要破坏这些方块。
     private static final Vec3i[] PORTALABLE_REGION_EXTRA = new Vec3i[]{
-            // Bottom two slots
+            // 底部两个槽位
             new Vec3i(0, -1, 0),
             new Vec3i(0, -1, 1),
-            // Water entry to reduce extra water
+            // 减少额外水的水入口
             new Vec3i(2, -1, 0),
             new Vec3i(2, -1, 1)
     };
     private static final Vec3i PORTAL_ORIGIN_RELATIVE_TO_REGION = new Vec3i(1, 0, 2);
-    // Relative to portal origin
+    // 相对于传送门原点
     private static final Vec3i[] PORTAL_CONSTRUCTION_FRAME = new Vec3i[]{
-            // Left upside down L: Starting at bottom
+            // 左侧倒L形: 从底部开始
             new Vec3i(1, 0, -1),
             new Vec3i(1, 1, -1),
             new Vec3i(1, 2, -1),
             new Vec3i(1, 3, -1),
             new Vec3i(0, 3, -1),
 
-            // T/right side extension
+            // T形/右侧延伸
             new Vec3i(1, 0, 0),
             new Vec3i(1, 0, 1),
             new Vec3i(1, 1, 1),
             new Vec3i(1, 0, 2),
-            // Bonus right side nudge for blocking water
+            // 阻挡水的右侧额外推动
             new Vec3i(1, 1, 2),
             new Vec3i(1, 2, 2),
             new Vec3i(2, 0, 2),
 
-            // Bottom part below the bottom 2 obsidian
+            // 底部两个黑曜石下方的部分
             new Vec3i(0, -2, 0),
             new Vec3i(0, -2, 1)
     };
-    // How the lava will be placed to make the portal. (place relative to origin AND what direction it is placed on)
-    // !! Also represents the ORDER at which the lava will be placed.
+    // 熔岩如何放置以形成传送门。(相对于原点放置位置和放置方向)
+    // !! 还表示熔岩放置的顺序。
     private static final LavaTarget[] PORTAL_FRAME_LAVA = new LavaTarget[]{
-            // Left side
+            // 左侧
             new LavaTarget(0, 0, -1, Direction.fromVector(-1, 0, 0)),
             new LavaTarget(0, 1, -1, Direction.fromVector(-1, 0, 0)),
             new LavaTarget(0, 2, -1, Direction.fromVector(0, 1, 0)),
-            // Right side
+            // 右侧
             new LavaTarget(0, 0, 2, Direction.fromVector(-1, 0, 0)),
             new LavaTarget(0, 1, 2, Direction.fromVector(0, 1, 0)),
             new LavaTarget(0, 2, 2, Direction.fromVector(0, 1, 0)),
-            // Bottom
+            // 底部
             new LavaTarget(0, -1, 0, Direction.fromVector(0, 1, 0)),
             new LavaTarget(0, -1, 1, Direction.fromVector(0, 1, 0)),
-            // Top
+            // 顶部
             new LavaTarget(0, 3, 0, Direction.fromVector(0, 0, 1)),
             new LavaTarget(0, 3, 1, Direction.fromVector(0, 0, 1))
     };
@@ -146,22 +146,22 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
         // Pre-affirmed thing
         mod.getBehaviour().setAllowWalkThroughFlowingWater(false);
 
-        // Get bucket if we don't have one.
+        // 如果没有桶，获取一个。
         if (!mod.getItemStorage().hasItem(Items.BUCKET) && !mod.getItemStorage().hasItem(Items.WATER_BUCKET) && !mod.getItemStorage().hasItem(Items.LAVA_BUCKET)) {
-            setDebugState("Getting bucket");
+            setDebugState("获取桶");
             return TaskCatalogue.getItemTask(Items.BUCKET, 1);
         }
 
-        // Get flint & steel if we don't have one
+        // 如果没有打火石和铁，获取一个
         if (!mod.getItemStorage().hasItem(Items.FLINT_AND_STEEL)) {
-            setDebugState("Getting flint & steel");
+            setDebugState("获取打火石和铁");
             return TaskCatalogue.getItemTask(Items.FLINT_AND_STEEL, 1);
         }
 
         boolean needsToLookForPortal = portalOrigin == null;
         if (needsToLookForPortal) {
             if (!mod.getItemStorage().hasItem(Items.WATER_BUCKET)) {
-                setDebugState("Getting water");
+                setDebugState("获取水桶");
                 return TaskCatalogue.getItemTask(Items.WATER_BUCKET, 1);
             }
 
@@ -170,61 +170,61 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
             if (firstSearch || lavaSearchTimer.elapsed()) {
                 firstSearch = false;
                 lavaSearchTimer.reset();
-                Debug.logMessage("(Searching for lava lake with portalable spot nearby...)");
+                Debug.logMessage("(搜索附近有可建造传送门位置的熔岩湖...)");
                 BlockPos lavaPos = findLavaLake(mod, mod.getPlayer().getBlockPos());
                 if (lavaPos != null) {
-                    // We have a lava lake, set our portal origin!
+                    // 我们有一个熔岩湖，设置我们的传送门原点！
                     BlockPos foundPortalRegion = getPortalableRegion(lavaPos, mod.getPlayer().getBlockPos(), new Vec3i(-1, 0, 0), PORTALABLE_REGION_SIZE, 20);
                     if (foundPortalRegion == null) {
-                        Debug.logWarning("Failed to find portalable region nearby. Consider increasing the search timeout range");
+                        Debug.logWarning("未能找到附近的可建造传送门区域。考虑增加搜索超时范围");
                     } else {
                         portalOrigin = foundPortalRegion.add(PORTAL_ORIGIN_RELATIVE_TO_REGION);
                         foundSpot = true;
                     }
                 } else {
-                    Debug.logMessage("(lava lake not found)");
+                    Debug.logMessage("(未找到熔岩湖)");
                 }
             }
 
             if (!foundSpot) {
-                setDebugState("(timeout: Looking for lava lake)");
+                setDebugState("(超时: 寻找熔岩湖)");
                 return new TimeoutWanderTask(100);
             }
         }
 
-        // Now... Build the foundation
+        // 现在... 建造基础
 
         if (!portalFrameBuilt) {
             BlockPos requiredFrame = getRequiredFrameLeft();
             if (requiredFrame != null) {
-                setDebugState("Creating construction frame");
+                setDebugState("创建构造框架");
                 return new PlaceStructureBlockTask(requiredFrame);
             }
         }
 
-        // Clear the spot
+        // 清理位置
         if (!portalFrameBuilt && !isPlacingLiquid) {
             BlockPos toDestroy = getPortalRegionUnclearedBlock();
             if (toDestroy != null) {
-                setDebugState("Clearing Portal Region");
+                setDebugState("清理传送门区域");
                 placeLavaWeCanBreakAgainTimer.reset();
                 destroyTarget = toDestroy;
                 return new DestroyBlockTask(toDestroy);//new ClearRegionTask(getPortalRegionCorner(), getPortalRegionCorner().add(PORTALABLE_REGION_SIZE));
             }
         }
 
-        // Place our water source
+        // 放置我们的水源
         if (!portalFrameBuilt) {
             BlockPos waterSourcePos = portalOrigin.add(WATER_SOURCE_ORIGIN);
             if (MinecraftClient.getInstance().world.getBlockState(waterSourcePos).getBlock() != Blocks.WATER) {
                 if (!mod.getItemStorage().hasItem(Items.WATER_BUCKET)) {
-                    setDebugState("Getting water");
+                    setDebugState("获取水桶");
                     return TaskCatalogue.getItemTask(Items.WATER_BUCKET, 1);
                 }
-                setDebugState("Placing water: " + waterSourcePos);
+                setDebugState("放置水: " + waterSourcePos);
                 isPlacingLiquid = true;
-                // Place water
-                // south corresponds to +z
+                // 放置水
+                // 南方向对应+z
                 Direction placeWaterFrom = Direction.SOUTH;
                 return new InteractWithBlockTask(new ItemTarget(Items.WATER_BUCKET, 1), placeWaterFrom, waterSourcePos.offset(placeWaterFrom.getOpposite()), true);
             }
@@ -232,14 +232,14 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
         //_isPlacingLiquid = false;
 
 
-        // Place lava
+        // 放置熔岩
         for (LavaTarget lavaTarget : PORTAL_FRAME_LAVA) {
             //mod.getConfigState().setAllowWalkThroughFlowingWater(true);
             if (!lavaTarget.isSatisfied(portalOrigin)) {
 
-                // Get lava if we don't have it.
+                // 如果没有熔岩桶，获取一个。
                 if (!mod.getItemStorage().hasItem(Items.LAVA_BUCKET)) {
-                    setDebugState("Getting Lava");
+                    setDebugState("获取熔岩桶");
                     isPlacingLiquid = true;
                     return collectLavaTask;
                 }
@@ -249,16 +249,16 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
                     placeLavaWeCanBreakAgainTimer.reset();
                 }
                 portalFrameBuilt = false;
-                // Walk through water to get to the bottom, we have to get there to further guarantee placement.
+                // 穿过水到达底部，我们必须到达那里以进一步保证放置。
                 mod.getBehaviour().setAllowWalkThroughFlowingWater(lavaTarget.isBelow());
 
-                // Special case: Get close enough to our base if we're placing in the bad zone
+                // 特殊情况：如果我们放置在危险区域，靠近我们的基地
                 if (lavaTarget.isBelow()) {
                     BlockPos posClose = portalOrigin.add(lavaTarget.where).add(-1,1,0);
-                    // If we're not right at that point and we're registered to keep fighting for it, go for it.
+                    // 如果我们不在那个点上，并且我们注册了继续争夺它，那就去吧。
                     if (!mod.getPlayer().getBlockPos().equals(posClose)) {
                         if (!specialBottomCaseCloserTimer.elapsed()) {
-                            setDebugState("Special Case: Getting near bottom lava to place it.");
+                            setDebugState("特殊情况：靠近底部熔岩以放置它。");
                             specialBottomCaseCloserTimerForcePlace.reset();
                             return new GetToBlockTask(posClose, false);
                         } else {
@@ -270,7 +270,7 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
                 }
 
                 isPlacingLiquid = true;
-                setDebugState("Placing Obsidian");
+                setDebugState("放置黑曜石");
                 return lavaTarget.placeTask(portalOrigin, lavaTarget.isBelow());
             }
         }
@@ -278,26 +278,26 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
 
         portalFrameBuilt = true;
 
-        // Delete water source
+        // 删除水源
         BlockPos waterSourcePos = portalOrigin.add(WATER_SOURCE_ORIGIN);
         BlockState waterSource = MinecraftClient.getInstance().world.getBlockState(waterSourcePos);
         if (waterSource.getBlock() == Blocks.WATER) {
-            setDebugState("Removing water source");
+            setDebugState("移除水源");
 
             return new ClearLiquidTask(waterSourcePos);
         }
 
-        // Clear inside of portal
+        // 清理传送门内部
         for (Vec3i offs : PORTAL_INTERIOR) {
             BlockPos p = portalOrigin.add(offs);
             if (!MinecraftClient.getInstance().world.getBlockState(p).isAir()) {
-                setDebugState("Clearing inside of portal");
+                setDebugState("清理传送门内部");
                 return new DestroyBlockTask(p);
             }
         }
-        setDebugState("Flinting and Steeling");
+        setDebugState("使用打火石点火");
 
-        // Flint and steel it baby
+        // 用打火石点火，宝贝
         return new InteractWithBlockTask(new ItemTarget(Items.FLINT_AND_STEEL, 1), Direction.UP, portalOrigin.down(), true);
 
         // Pick up water
@@ -332,7 +332,7 @@ public class ConstructNetherPortalSpeedrunTask extends adris.altoclef.tasksystem
 
     @Override
     protected String toDebugString() {
-        return "Construct Nether Portal (the cool way)";
+        return "建造下界传送门（酷炫方式）";
     }
 
 

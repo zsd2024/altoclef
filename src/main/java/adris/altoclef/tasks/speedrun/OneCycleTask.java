@@ -18,10 +18,17 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 
+/**
+ * OneCycle任务类 - 用于执行末影龙速通
+ * 此任务使用床来快速击败末影龙
+ */
 public class OneCycleTask extends Task {
-
+    
+    // 放置床的计时器
     TimerGame placeBedTimer = new TimerGame(0.6);
+    // 等待计时器
     TimerGame waiTimer = new TimerGame(0.3);
+    // 之前距离
     double prevDist = 100;
 
 
@@ -30,24 +37,29 @@ public class OneCycleTask extends Task {
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
+        // 停止食物链，清空副手
         mod.getFoodChain().shouldStop(true);
         mod.getSlotHandler().forceEquipItemToOffhand(Items.AIR);
 
+        // 如果蹲下则释放蹲下按键
         if (mod.getInputControls().isHeldDown(Input.SNEAK)) {
             mod.getInputControls().release(Input.SNEAK);
         }
 
+        // 检查末影龙
         List<EnderDragonEntity> dragons = mod.getEntityTracker().getTrackedEntities(EnderDragonEntity.class);
         if (dragons.size() != 1) {
-              mod.log("No dragon? :(");
+              mod.log("没有龙? :(");
         }
 
         for (EnderDragonEntity dragon : dragons) {
 
+            // 获取末地传送门顶部
             BlockPos endPortalTop = KillEnderDragonWithBedsTask.locateExitPortalTop(mod).up();
             BlockPos obsidian = null;
             Direction dir = null;
 
+            // 查找附近的黑曜石
             for (Direction direction : new Direction[]{Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH}) {
                 if (mod.getWorld().getBlockState(endPortalTop.offset(direction)).getBlock().equals(Blocks.OBSIDIAN)) {
                     obsidian = endPortalTop.offset(direction);
@@ -57,13 +69,15 @@ public class OneCycleTask extends Task {
             }
 
             if (dir == null) {
-                mod.log("no obisidan? :(");
+                mod.log("没有黑曜石? :(");
                 return null;
             }
 
+            // 计算目标位置
             Direction offsetDir = dir.getAxis() == Direction.Axis.X ? Direction.SOUTH : Direction.WEST;
             BlockPos targetBlock = endPortalTop.down(3).offset(offsetDir, 3).offset(dir);
 
+            // 检查与目标位置的距离
             double d = distanceIgnoreY(WorldHelper.toVec3d(targetBlock), mod.getPlayer().getPos());
             if (d > 0.7) {
                 mod.log(d + "");
@@ -78,6 +92,7 @@ public class OneCycleTask extends Task {
             mod.getSlotHandler().forceEquipItem(ItemHelper.BED);
 
             if (bedHead == null) {
+                // 放置床
                 if (placeBedTimer.elapsed() && Math.abs(dragon.getY() - endPortalTop.getY()) < 10) {
                     mod.getInputControls().tryPress(Input.CLICK_RIGHT);
                     waiTimer.reset();
@@ -99,6 +114,7 @@ public class OneCycleTask extends Task {
             }
 
 
+            // 计算龙与床的距离
             Vec3d dragonHeadPos = dragon.head.getBoundingBox().getCenter(); // dragon.head.getPos();
             Vec3d bedHeadPos = WorldHelper.toVec3d(bedHead);
 
@@ -107,6 +123,7 @@ public class OneCycleTask extends Task {
 
             EnderDragonPart body = dragon.getBodyParts()[2];
 
+            // 确定是否需要爆炸床
             double destroyDistance = Math.abs(body.getBoundingBox().getMin(Direction.Axis.Y) - bedHeadPos.getY());
             boolean tooClose = destroyDistance < 1.1;
             boolean skip = destroyDistance > 3 && dist > 4.5 && distXZ > 2.5;
@@ -114,6 +131,7 @@ public class OneCycleTask extends Task {
             mod.log(destroyDistance + " : " + dist + " : " + distXZ);
             //   double dist = distanceIgnoreY(dragonHeadPos,WorldHelper.toVec3d(bedHead));
 
+            // 爆炸床触发条件
             if ((dist < 1.5 || (prevDist < distXZ && destroyDistance < 4 && prevDist < 2.9)) || (destroyDistance < 2 && dist < 4)
                     || (destroyDistance < 1.7 && dist < 4.5) || tooClose || (destroyDistance < 2.4 && distXZ < 3.7) || (destroyDistance < 3.5 && distXZ < 2.4)) {
 
@@ -143,6 +161,12 @@ public class OneCycleTask extends Task {
         return null;
     }
 
+    /**
+     * 计算忽略Y轴的距离
+     * @param vec 第一个向量
+     * @param vec1 第二个向量
+     * @return XZ平面的距离
+     */
     public double distanceIgnoreY(Vec3d vec, Vec3d vec1) {
         double d = vec.x - vec1.x;
         double f = vec.z - vec1.z;
@@ -171,6 +195,6 @@ public class OneCycleTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "One cycling bby";
+        return "One cycling (速通模式)";
     }
 }

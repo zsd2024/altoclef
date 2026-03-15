@@ -9,6 +9,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 合成压缩器，将多个合成任务压缩为一个任务以提高效率
+ */
 public class CraftSquasher extends TypeSquasher<CraftInTableTask> {
     @Override
     protected List<ResourceTask> getSquashed(List<CraftInTableTask> tasks) {
@@ -19,7 +22,7 @@ public class CraftSquasher extends TypeSquasher<CraftInTableTask> {
             targetRecipies.addAll(Arrays.asList(task.getRecipeTargets()));
         }
 
-        //Debug.logMessage("Squashed " + targetRecipies.size());
+        //Debug.logMessage("压缩了 " + targetRecipies.size() + " 个配方");
 
         return Collections.singletonList(new CraftInTableTask(targetRecipies.toArray(RecipeTarget[]::new)));
     }

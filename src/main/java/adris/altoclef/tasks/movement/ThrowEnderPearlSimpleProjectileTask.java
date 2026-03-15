@@ -13,17 +13,27 @@ import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * 投掷末影珍珠简单抛物任务 - 向目标位置投掷末影珍珠
+ */
 public class ThrowEnderPearlSimpleProjectileTask extends Task {
 
-    private final TimerGame _thrownTimer = new TimerGame(5);
-    private final BlockPos _target;
+    private final TimerGame _thrownTimer = new TimerGame(5); // 投掷计时器
+    private final BlockPos _target; // 目标位置
 
-    private boolean _thrown = false;
+    private boolean _thrown = false; // 是否已投掷
 
     public ThrowEnderPearlSimpleProjectileTask(BlockPos target) {
         _target = target;
     }
 
+    /**
+     * 检查投掷路径是否清晰
+     * @param mod AltoClef实例
+     * @param yaw 偏航角
+     * @param pitch 俯仰角
+     * @return 投掷路径是否清晰
+     */
     private static boolean cleanThrow(AltoClef mod, float yaw, float pitch) {
         Rotation rotation = new Rotation(yaw, -1 * pitch);
         float range = 3f;
@@ -32,6 +42,12 @@ public class ThrowEnderPearlSimpleProjectileTask extends Task {
         return LookHelper.cleanLineOfSight(start.add(delta), range);
     }
 
+    /**
+     * 计算投掷时的视角
+     * @param mod AltoClef实例
+     * @param end 目标位置
+     * @return 投掷时的视角
+     */
     private static Rotation calculateThrowLook(AltoClef mod, BlockPos end) {
         Vec3d start = ProjectileHelper.getThrowOrigin(mod.getPlayer());
         Vec3d endCenter = WorldHelper.toVec3d(end);
@@ -54,7 +70,7 @@ public class ThrowEnderPearlSimpleProjectileTask extends Task {
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // TODO: Unlikely/minor nitpick, but there could be other people throwing ender pearls, which would delay the bot.
+        // TODO: 不太可能/小问题，但可能有其他人投掷末影珍珠，这会延迟机器人。
         if (mod.getEntityTracker().entityFound(EnderPearlEntity.class)) {
             _thrownTimer.reset();
         }
@@ -92,6 +108,6 @@ public class ThrowEnderPearlSimpleProjectileTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Simple Ender Pearling to " + _target;
+        return "向 " + _target + " 投掷末影珍珠";
     }
 }

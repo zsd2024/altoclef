@@ -16,12 +16,16 @@ import net.minecraft.util.DyeColor;
 import java.util.Arrays;
 import java.util.HashSet;
 
+/**
+ * 收集羊毛任务
+ * 用于收集指定颜色的羊毛，通过挖掘羊毛块、剪羊毛或击杀羊获得
+ */
 public class CollectWoolTask extends ResourceTask {
 
-    private final int _count;
+    private final int _count; // 目标羊毛数量
 
-    private final HashSet<DyeColor> _colors;
-    private final Item[] _wools;
+    private final HashSet<DyeColor> _colors; // 需要的颜色集合
+    private final Item[] _wools; // 目标羊毛物品数组
 
     public CollectWoolTask(DyeColor[] colors, int count) {
         super(new ItemTarget(ItemHelper.WOOL, count));
@@ -38,6 +42,11 @@ public class CollectWoolTask extends ResourceTask {
         this(DyeColor.values(), count);
     }
 
+    /**
+     * 根据染料颜色获取对应的羊毛物品
+     * @param colors 染料颜色数组
+     * @return 对应颜色的羊毛物品数组
+     */
     private static Item[] getWoolColorItems(DyeColor[] colors) {
         Item[] result = new Item[colors.length];
         for (int i = 0; i < result.length; ++i) {
@@ -53,39 +62,39 @@ public class CollectWoolTask extends ResourceTask {
 
     @Override
     protected void onResourceStart(AltoClef mod) {
-
+        // 任务开始时的初始化
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
 
-        // TODO: If we don't find good color wool blocks
-        // and we DONT find good color sheep:
-        // USE DYES + REGULAR WOOL TO CRAFT THE WOOL COLOR!!
+        // TODO: 如果我们找不到合适颜色的羊毛方块
+        // 且我们找不到合适颜色的羊:
+        // 使用染料+普通羊毛合成所需颜色的羊毛!!
 
-        // If we find a wool block, break it.
+        // 如果我们找到羊毛方块，破坏它
         Block[] woolBlocks = ItemHelper.itemsToBlocks(_wools);
         if (mod.getBlockScanner().anyFound(woolBlocks)) {
             return new MineAndCollectTask(new ItemTarget(_wools), woolBlocks, MiningRequirement.HAND);
         }
 
-        // If we have shears, right click nearest sheep
-        // Otherwise, kill + loot wool.
+        // 如果我们有剪刀，右键点击最近的羊
+        // 否则，击杀+拾取羊毛
 
-        // Dimension
+        // 维度检查
         if (isInWrongDimension(mod) && !mod.getEntityTracker().entityFound(SheepEntity.class)) {
             return getToCorrectDimensionTask(mod);
         }
 
         if (mod.getItemStorage().hasItem(Items.SHEARS)) {
-            // Shear sheep.
+            // 剪羊毛
             return new ShearSheepTask();
         }
 
-        // Only option left is to Kill la Kill.
+        // 唯一剩下的选择就是击杀羊
         return new KillAndLootTask(SheepEntity.class, entity -> {
             if (entity instanceof SheepEntity sheep) {
-                // Hunt sheep of the same color.
+                // 狩猎相同颜色的羊
                 return _colors.contains(sheep.getColor()) && !sheep.isSheared();
             }
             return false;
@@ -94,7 +103,7 @@ public class CollectWoolTask extends ResourceTask {
 
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-
+        // 任务结束时的清理
     }
 
     @Override
@@ -104,7 +113,7 @@ public class CollectWoolTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Collect " + _count + " wool.";
+        return "收集 " + _count + " 个羊毛。";
     }
 
 }

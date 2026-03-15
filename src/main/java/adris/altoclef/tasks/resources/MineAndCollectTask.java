@@ -30,14 +30,22 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.*;
 
+/**
+ * 挖掘并收集任务
+ * 用于挖掘特定方块并收集掉落的物品
+ */
 public class MineAndCollectTask extends ResourceTask {
 
+    // 需要挖掘的方块数组
     private final Block[] _blocksToMine;
 
+    // 挖掘要求（工具等级等）
     private final MiningRequirement _requirement;
 
+    // 光标堆栈计时器，用于控制工具装备
     private final TimerGame _cursorStackTimer = new TimerGame(3);
 
+    // 子任务：挖掘或收集
     private final MineOrCollectTask _subtask;
 
     public MineAndCollectTask(ItemTarget[] itemTargets, Block[] blocksToMine, MiningRequirement requirement) {
@@ -59,6 +67,11 @@ public class MineAndCollectTask extends ResourceTask {
         this(new ItemTarget(item, count), blocksToMine, requirement);
     }
 
+    /**
+     * 将物品目标转换为方块列表
+     * @param targets 物品目标数组
+     * @return 方块数组
+     */
     public static Block[] itemTargetToBlockList(ItemTarget[] targets) {
         List<Block> result = new ArrayList<>(targets.length);
         for (ItemTarget target : targets) {
@@ -76,7 +89,7 @@ public class MineAndCollectTask extends ResourceTask {
     protected void onResourceStart(AltoClef mod) {
         mod.getBehaviour().push();
 
-        // We're mining, so don't throw away pickaxes.
+        // 我们在挖掘，所以不要丢弃镐子
         mod.getBehaviour().addProtectedItems(Items.WOODEN_PICKAXE, Items.STONE_PICKAXE, Items.IRON_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE);
 
         _subtask.resetSearch();
@@ -84,21 +97,23 @@ public class MineAndCollectTask extends ResourceTask {
 
     @Override
     protected boolean shouldAvoidPickingUp(AltoClef mod) {
-        // Picking up is controlled by a separate task here.
+        // 捡起物品由单独的任务控制
         return true;
     }
 
     @Override
     protected Task onResourceTick(AltoClef mod) {
+        // 检查挖掘要求是否满足
         if (!StorageHelper.miningRequirementMet(_requirement)) {
             return new SatisfyMiningRequirementTask(_requirement);
         }
 
+        // 如果正在挖掘，确保装备了合适的工具
         if (_subtask.isMining()) {
             makeSureToolIsEquipped(mod);
         }
 
-        // Wrong dimension check.
+        // 检查是否在错误的维度
         if (_subtask.wasWandering() && isInWrongDimension(mod) && !mod.getBlockScanner().anyFound(_blocksToMine)) {
             return getToCorrectDimensionTask(mod);
         }
@@ -121,28 +136,33 @@ public class MineAndCollectTask extends ResourceTask {
 
     @Override
     protected String toDebugStringName() {
-        return "Mine And Collect";
+        return "挖掘并收集";
     }
 
+    /**
+     * 确保装备了合适的工具
+     * @param mod AltoClef实例
+     */
     private void makeSureToolIsEquipped(AltoClef mod) {
         if (_cursorStackTimer.elapsed() && !mod.getFoodChain().needsToEat()) {
             assert MinecraftClient.getInstance().player != null;
             ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
             if (cursorStack != null && !cursorStack.isEmpty()) {
-                // We have something in our cursor stack
+                // 光标槽中有物品
                 Item item = cursorStack.getItem();
                 if (item.getDefaultStack().isSuitableFor(mod.getWorld().getBlockState(_subtask.miningPos()))) {
-                    // Our cursor stack would help us mine our current block
+                    // 光标槽中的物品有助于挖掘当前方块
                     Item currentlyEquipped = StorageHelper.getItemStackInSlot(PlayerSlot.getEquipSlot()).getItem();
                     if (item instanceof MiningToolItem) {
                         if (currentlyEquipped instanceof MiningToolItem currentPick) {
                             MiningToolItem swapPick = (MiningToolItem) item;
+                            // 检查是否可以装备更好的工具
                             if (ToolMaterialVer.getMiningLevel(swapPick) > ToolMaterialVer.getMiningLevel(currentPick)) {
-                                // We can equip a better pickaxe.
+                                // 我们可以装备更好的镐子
                                 mod.getSlotHandler().forceEquipSlot(CursorSlot.SLOT);
                             }
                         } else {
-                            // We're not equipped with a pickaxe...
+                            // 我们没有装备镐子...
                             mod.getSlotHandler().forceEquipSlot(CursorSlot.SLOT);
                         }
                     }
@@ -152,6 +172,10 @@ public class MineAndCollectTask extends ResourceTask {
         }
     }
 
+    /**
+     * 挖掘或收集子任务
+     * 处理挖掘方块或收集掉落物品的逻辑
+     */
     public static class MineOrCollectTask extends AbstractDoToClosestObjectTask<Object> {
 
         private final Block[] _blocks;
@@ -175,7 +199,7 @@ public class MineAndCollectTask extends ResourceTask {
             if (obj instanceof ItemEntity item) {
                 return item.getPos();
             }
-            throw new UnsupportedOperationException("Shouldn't try to get the position of object " + obj + " of type " + (obj != null ? obj.getClass().toString() : "(null object)"));
+            throw new UnsupportedOperationException("不应该尝试获取对象 " + obj + " 类型 " + (obj != null ? obj.getClass().toString() : "(空对象)") + " 的位置");
         }
 
         @Override
@@ -186,11 +210,12 @@ public class MineAndCollectTask extends ResourceTask {
             double blockSq = closestBlock.getLeft();
             double dropSq = closestDrop.getLeft();
 
-            // We can't mine right now.
+            // 我们现在不能挖掘
             if (mod.getExtraBaritoneSettings().isInteractionPaused()) {
                 return closestDrop.getRight().map(Object.class::cast);
             }
 
+            // 比较掉落物和方块的距离，选择更近的
             if (dropSq <= blockSq) {
                 return closestDrop.getRight().map(Object.class::cast);
             } else {
@@ -205,7 +230,7 @@ public class MineAndCollectTask extends ResourceTask {
             }
 
             return new Pair<>(
-                    // + 5 to make the bot stop mining a bit less
+                    // + 5 以减少机器人停止挖掘的频率
                     closestDrop.map(itemEntity -> itemEntity.squaredDistanceTo(pos) + 10).orElse(Double.POSITIVE_INFINITY),
                     closestDrop
             );
@@ -236,9 +261,10 @@ public class MineAndCollectTask extends ResourceTask {
             if (mod.getClientBaritone().getPathingBehavior().isPathing()) {
                 progressChecker.reset();
             }
+            // 检查挖掘进度，如果长时间没有进展则取消当前挖掘
             if (miningPos != null && !progressChecker.check(mod)) {
                 mod.getClientBaritone().getPathingBehavior().forceCancel();
-                Debug.logMessage("Failed to mine block. Suggesting it may be unreachable.");
+                Debug.logMessage("挖掘方块失败。可能无法到达。");
                 mod.getBlockScanner().requestBlockUnreachable(miningPos, 2);
                 blacklist.add(miningPos);
                 miningPos = null;
@@ -260,7 +286,7 @@ public class MineAndCollectTask extends ResourceTask {
                 miningPos = null;
                 return _pickupTask;
             }
-            throw new UnsupportedOperationException("Shouldn't try to get the goal from object " + obj + " of type " + (obj != null ? obj.getClass().toString() : "(null object)"));
+            throw new UnsupportedOperationException("不应该尝试从对象 " + obj + " 类型 " + (obj != null ? obj.getClass().toString() : "(空对象)") + " 获取目标");
         }
 
         @Override
@@ -301,7 +327,7 @@ public class MineAndCollectTask extends ResourceTask {
 
         @Override
         protected String toDebugString() {
-            return "Mining or Collecting";
+            return "挖掘或收集";
         }
 
         public boolean isMining() {

@@ -8,9 +8,12 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.Optional;
 
+/**
+ * 跟随玩家任务 - 跟随指定名称的玩家
+ */
 public class FollowPlayerTask extends Task {
 
-    private final String _playerName;
+    private final String _playerName; // 要跟随的玩家名称
 
     public FollowPlayerTask(String playerName) {
         _playerName = playerName;
@@ -25,25 +28,29 @@ public class FollowPlayerTask extends Task {
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
+        // 获取玩家最近的位置
         Optional<Vec3d> lastPos = mod.getEntityTracker().getPlayerMostRecentPosition(_playerName);
 
         if (lastPos.isEmpty()) {
-            setDebugState("No player found/detected. Doing nothing until player loads into render distance.");
+            setDebugState("未找到/检测到玩家。在玩家加载到渲染距离之前什么都不做。");
             return null;
         }
         Vec3d target = lastPos.get();
 
+        // 如果距离目标很近但玩家未加载，则停止任务
         if (target.isInRange(mod.getPlayer().getPos(), 1) && !mod.getEntityTracker().isPlayerLoaded(_playerName)) {
-            mod.logWarning("Failed to get to player \"" + _playerName + "\". We moved to where we last saw them but now have no idea where they are.");
+            mod.logWarning("未能到达玩家 \"" + _playerName + "\"。我们移动到上次看到他们的位置，但现在不知道他们在哪里。");
             stop();
             return null;
         }
 
+        // 获取玩家实体
         Optional<PlayerEntity> player = mod.getEntityTracker().getPlayerEntity(_playerName);
         if (player.isEmpty()) {
-            // Go to last location
+            // 前往最后的位置
             return new GetToBlockTask(new BlockPos((int) target.x, (int) target.y, (int) target.z), false);
         }
+        // 前往玩家实体
         return new GetToEntityTask(player.get(), 2);
     }
 
@@ -62,6 +69,6 @@ public class FollowPlayerTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Going to player " + _playerName;
+        return "前往玩家 " + _playerName;
     }
 }

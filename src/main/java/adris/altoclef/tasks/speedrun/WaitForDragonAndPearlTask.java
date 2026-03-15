@@ -29,19 +29,22 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 // TODO:
-// The 10 Portal pillars form a 43 block radius, but the angle offset/cycle is random.
-// Have an internal "cycle" value or something to keep track of where that cycle is
-// Detect that value by scrolling around the 43 block radius in search of obsidian and finding
-// the "midpoint" between two spots of obsidian and anything else
-// Then, when pillaring, make sure we move to one of those areas (so we can move further out without
-// risking hitting an obsidian tower)
+// 10个传送门柱形成一个43方块的半径，但角度偏移/循环是随机的。
+// 有一个内部的"cycle"值或其他东西来跟踪该循环的位置
+// 通过在43方块半径内滚动搜索黑曜石并找到两个黑曜石点之间的"中点"
+// 然后，在搭建柱子时，确保我们移动到这些区域之一（这样我们可以在不
+// 风险撞击黑曜石塔的情况下向外移动）
+/**
+ * 等待龙并投掷末影珍珠任务类
+ * 此任务负责等待末影龙停在柱子上并投掷末影珍珠
+ */
 public class WaitForDragonAndPearlTask extends Task {
 
-    // How far to travel away from the portal, in XZ
+    // 与传送门的距离，XZ方向
     private static final double XZ_RADIUS = 30;
     private static final double XZ_RADIUS_TOO_FAR = 38;
-    // How high to pillar
-    private static final int HEIGHT = 42; //Increase height because this too low
+    // 搭建柱子的高度
+    private static final int HEIGHT = 42; //增加高度因为这太低了
 
     private static final int CLOSE_ENOUGH_DISTANCE = 15;
 
@@ -50,15 +53,19 @@ public class WaitForDragonAndPearlTask extends Task {
     private static final double DRAGON_FIREBALL_TOO_CLOSE_RANGE = 40;
     private final Task buildingMaterialsTask = new GetBuildingMaterialsTask(HEIGHT + 10);
     boolean inCenter;
-    private Task heightPillarTask;
-    private Task throwPearlTask;
-    private BlockPos targetToPearl;
-    private boolean dragonIsPerching;
-    // To avoid dragons breath
-    private Task pillarUpFurther;
+    private Task heightPillarTask; // 攀高柱子任务
+    private Task throwPearlTask; // 投掷珍珠任务
+    private BlockPos targetToPearl; // 投掷珍珠的目标位置
+    private boolean dragonIsPerching; // 龙是否在柱子上停下
+    // 为避免龙的吐息
+    private Task pillarUpFurther; // 进一步搭建柱子的任务
 
     private boolean _hasPillar = false;
 
+    /**
+     * 设置退出传送门顶部位置
+     * @param top 传送门顶部位置
+     */
     public void setExitPortalTop(BlockPos top) {
         BlockPos actualTarget = top.down();
         if (!actualTarget.equals(targetToPearl)) {
@@ -67,6 +74,10 @@ public class WaitForDragonAndPearlTask extends Task {
         }
     }
 
+    /**
+     * 设置停靠状态
+     * @param perching 龙是否在停靠
+     */
     public void setPerchState(boolean perching) {
         dragonIsPerching = perching;
     }
@@ -82,12 +93,12 @@ public class WaitForDragonAndPearlTask extends Task {
         Optional<Entity> enderMen = mod.getEntityTracker().getClosestEntity(EndermanEntity.class);
         if (enderMen.isPresent() && (enderMen.get() instanceof EndermanEntity endermanEntity) &&
                 endermanEntity.getTarget()==mod.getPlayer()) {
-            setDebugState("Killing angry endermen");
+            setDebugState("击杀愤怒的末影人");
             Predicate<Entity> angry = entity -> endermanEntity.getTarget()==mod.getPlayer();
             return new KillEntitiesTask(angry, enderMen.get().getClass());
         }
         if (throwPearlTask != null && throwPearlTask.isActive() && !throwPearlTask.isFinished()) {
-            setDebugState("Throwing pearl!");
+            setDebugState("投掷珍珠!");
             return throwPearlTask;
         }
 
@@ -96,20 +107,20 @@ public class WaitForDragonAndPearlTask extends Task {
             Optional<Entity> cloud = mod.getEntityTracker().getClosestEntity(AreaEffectCloudEntity.class);
 
             if (cloud.isPresent() && cloud.get().isInRange(mod.getPlayer(), 4)) {
-                setDebugState("PILLAR UP FURTHER to avoid dragon's breath");
+                setDebugState("进一步搭建柱子以避免龙的吐息");
                 return pillarUpFurther;
             }
 
             Optional<Entity> fireball = mod.getEntityTracker().getClosestEntity(DragonFireballEntity.class);
 
             if (isFireballDangerous(mod, fireball)) {
-                setDebugState("PILLAR UP FURTHER to avoid dragon's breath");
+                setDebugState("进一步搭建柱子以避免龙的吐息");
                 return pillarUpFurther;
             }
         }
 
         if (!mod.getItemStorage().hasItem(Items.ENDER_PEARL) && inCenter) {
-            setDebugState("First get ender pearls.");
+            setDebugState("首先获取末影珍珠。");
             return TaskCatalogue.getItemTask(Items.ENDER_PEARL, 1);
         }
 
@@ -121,9 +132,9 @@ public class WaitForDragonAndPearlTask extends Task {
             return buildingMaterialsTask;
         }
 
-        // Our trigger to throw is that the dragon starts perching. We can be an arbitrary distance and we'll still do it lol
+        // 我们的投掷触发器是龙开始停靠。我们可以在任意距离投掷，我们仍然会这样做哈哈
         if (dragonIsPerching && canThrowPearl(mod)) {
-            Debug.logMessage("THROWING PEARL!!");
+            Debug.logMessage("投掷珍珠!!");
             return throwPearlTask;
         }
         if (mod.getPlayer().getBlockPos().getY() < minHeight) {
@@ -136,7 +147,7 @@ public class WaitForDragonAndPearlTask extends Task {
                 return null;
             }
             if (heightPillarTask != null && heightPillarTask.isActive() && !heightPillarTask.isFinished()) {
-                setDebugState("Pillaring up!");
+                setDebugState("搭建柱子!");
                 inCenter = true;
                 if (mod.getEntityTracker().entityFound(EndCrystalEntity.class)) {
                     return new DoToClosestEntityTask(
@@ -160,12 +171,12 @@ public class WaitForDragonAndPearlTask extends Task {
                 return heightPillarTask;
             }
         } else {
-            setDebugState("We're high enough.");
-            // If a fireball is too close, run UP
+            setDebugState("我们已经足够高了。");
+            // 如果火球太近，向上移动
             Optional<Entity> dragonFireball = mod.getEntityTracker().getClosestEntity(DragonFireballEntity.class);
             if (dragonFireball.isPresent() && dragonFireball.get().isInRange(mod.getPlayer(), DRAGON_FIREBALL_TOO_CLOSE_RANGE) && LookHelper.cleanLineOfSight(mod.getPlayer(), dragonFireball.get().getPos(), DRAGON_FIREBALL_TOO_CLOSE_RANGE)) {
                 pillarUpFurther = new GetToYTask(mod.getPlayer().getBlockY() + 5);
-                Debug.logMessage("HOLDUP");
+                Debug.logMessage("暂停");
                 return pillarUpFurther;
             }
             if (mod.getEntityTracker().entityFound(EndCrystalEntity.class)) {
@@ -202,10 +213,10 @@ public class WaitForDragonAndPearlTask extends Task {
                 }
                 return null;
             }
-            setDebugState("Moving in (too far, might hit pillars)");
+            setDebugState("向内移动（太远了，可能会撞到柱子）");
             return new GetToXZTask(0, 0);
         }
-        // We're far enough, pillar up!
+        // 我们已经足够远了，搭建柱子！
         if (!_hasPillar) {
             _hasPillar = true;
         }
@@ -213,31 +224,41 @@ public class WaitForDragonAndPearlTask extends Task {
         return heightPillarTask;
     }
 
-    // basically same as LookHelper.cleanLineOfSight but edited so it has a small distance toleration
+    /**
+     * 基本上与LookHelper.cleanLineOfSight相同，但进行了编辑，使其具有较小的距离容差
+     * @param mod AltoClef实例
+     * @return 是否可以投掷珍珠
+     */
     private boolean canThrowPearl(AltoClef mod) {
         Vec3d targetPosition = WorldHelper.toVec3d(targetToPearl.up());
 
-        // Perform a raycast from the entity's camera position to the target position with the specified max range
+        // 从实体的摄像机位置到目标位置执行射线投射，指定最大范围
         BlockHitResult hitResult = LookHelper.raycast(mod.getPlayer(), LookHelper.getCameraPos(mod.getPlayer()), targetPosition, 300);
 
         if (hitResult == null) {
-            // No hit result, clear line of sight
+            // 没有命中结果，视野清晰
             return true;
         } else {
             return switch (hitResult.getType()) {
                 case MISS ->
-                    // Missed the target, clear line of sight
+                    // 错过了目标，视野清晰
                         true;
                 case BLOCK ->
-                    // Hit a block, check if it's the same as the target block
+                    // 命中方块，检查是否与目标方块相同
                         hitResult.getBlockPos().isWithinDistance(targetToPearl.up(), 10);
                 case ENTITY ->
-                    // Hit an entity, line of sight blocked
+                    // 命中实体，视野被阻挡
                         false;
             };
         }
     }
 
+    /**
+     * 检查火球是否危险
+     * @param mod AltoClef实例
+     * @param fireball 火球实体
+     * @return 火球是否危险
+     */
     private boolean isFireballDangerous(AltoClef mod, Optional<Entity> fireball) {
         if (fireball.isEmpty())
             return false;
@@ -267,6 +288,6 @@ public class WaitForDragonAndPearlTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Waiting for Dragon Perch + Pearling";
+        return "等待龙停靠+投掷珍珠";
     }
 }

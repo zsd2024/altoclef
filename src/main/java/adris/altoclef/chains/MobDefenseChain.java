@@ -44,43 +44,57 @@ import net.minecraft.world.Difficulty;
 import java.util.*;
 
 
-// TODO: Optimise shielding against spiders and skeletons
+// TODO: 优化对蜘蛛和骷髅的护盾防御
 
+/**
+ * 怪物防御链 - 自动处理玩家面对敌对生物时的防御行为
+ * 包括主动攻击、躲避、护盾防御、逃跑等多种防御策略
+ */
 public class MobDefenseChain extends SingleTaskChain {
-    private static final double DANGER_KEEP_DISTANCE = 30;
-    private static final double CREEPER_KEEP_DISTANCE = 10;
-    private static final double ARROW_KEEP_DISTANCE_HORIZONTAL = 2;
-    private static final double ARROW_KEEP_DISTANCE_VERTICAL = 10;
-    private static final double SAFE_KEEP_DISTANCE = 8;
+    private static final double DANGER_KEEP_DISTANCE = 30; // 危险距离阈值
+    private static final double CREEPER_KEEP_DISTANCE = 10; // 苦力怕距离阈值
+    private static final double ARROW_KEEP_DISTANCE_HORIZONTAL = 2; // 箭矢水平距离阈值
+    private static final double ARROW_KEEP_DISTANCE_VERTICAL = 10; // 箭矢垂直距离阈值
+    private static final double SAFE_KEEP_DISTANCE = 8; // 安全距离阈值
     private static final List<Class<? extends Entity>> ignoredMobs = List.of(Entities.WARDEN, WitherEntity.class, EndermanEntity.class, BlazeEntity.class,
-            WitherSkeletonEntity.class, HoglinEntity.class, ZoglinEntity.class, PiglinBruteEntity.class, VindicatorEntity.class, MagmaCubeEntity.class);
+            WitherSkeletonEntity.class, HoglinEntity.class, ZoglinEntity.class, PiglinBruteEntity.class, VindicatorEntity.class, MagmaCubeEntity.class); // 忽略的怪物类型列表
 
-    private static boolean shielding = false;
-    private final DragonBreathTracker dragonBreathTracker = new DragonBreathTracker();
-    private final KillAura killAura = new KillAura();
-    private Entity targetEntity;
-    private boolean doingFunkyStuff = false;
-    private boolean wasPuttingOutFire = false;
-    private CustomBaritoneGoalTask runAwayTask;
-    private float prevHealth = 20;
-    private boolean needsChangeOnAttack = false;
-    private Entity lockedOnEntity = null;
+    private static boolean shielding = false; // 标记是否正在护盾防御
+    private final DragonBreathTracker dragonBreathTracker = new DragonBreathTracker(); // 龙息追踪器
+    private final KillAura killAura = new KillAura(); // 自动攻击光环
+    private Entity targetEntity; // 目标实体
+    private boolean doingFunkyStuff = false; // 标记是否在做特殊操作
+    private boolean wasPuttingOutFire = false; // 标记是否正在灭火
+    private CustomBaritoneGoalTask runAwayTask; // 逃跑任务
+    private float prevHealth = 20; // 前一时刻的健康值
+    private boolean needsChangeOnAttack = false; // 标记是否需要在攻击后改变策略
+    private Entity lockedOnEntity = null; // 锁定的实体
 
-    private float cachedLastPriority;
+    private float cachedLastPriority; // 缓存的优先级
 
     public MobDefenseChain(TaskRunner runner) {
         super(runner);
     }
 
+    /**
+     * 计算苦力怕的安全值
+     * @param pos 位置向量
+     * @param creeper 苦力怕实体
+     * @return 安全值（更小表示更危险）
+     */
     public static double getCreeperSafety(Vec3d pos, CreeperEntity creeper) {
         double distance = creeper.squaredDistanceTo(pos);
         float fuse = creeper.getClientFuseTime(1);
 
-        // Not fusing.
+        // 未引燃
         if (fuse <= 0.001f) return distance;
-        return distance * 0.2; // less is WORSE
+        return distance * 0.2; // 更小表示更危险
     }
 
+    /**
+     * 开始护盾防御
+     * @param mod AltoClef实例
+     */
     private static void startShielding(AltoClef mod) {
         shielding = true;
         mod.getClientBaritone().getPathingBehavior().requestPause();
@@ -103,6 +117,11 @@ public class MobDefenseChain extends SingleTaskChain {
         mod.getInputControls().hold(Input.CLICK_RIGHT);
     }
 
+    /**
+     * 获取危险度评分
+     * @param toDealWithList 需要处理的实体列表
+     * @return 危险度评分
+     */
     private static int getDangerousnessScore(List<LivingEntity> toDealWithList) {
         int numberOfProblematicEntities = toDealWithList.size();
         for (LivingEntity toDealWith : toDealWithList) {
@@ -110,7 +129,7 @@ public class MobDefenseChain extends SingleTaskChain {
 
                 numberOfProblematicEntities += 1;
             } else if (toDealWith instanceof DrownedEntity && toDealWith.getEquippedItems() == Items.TRIDENT) {
-                // Drowned with tridents are also REALLY dangerous, maybe we should increase this??
+                // 持有三叉戟的溺尸也非常危险，也许我们应该增加这个值？？
                 numberOfProblematicEntities += 5;
             }
         }
@@ -124,6 +143,10 @@ public class MobDefenseChain extends SingleTaskChain {
         return cachedLastPriority;
     }
 
+    /**
+     * 停止护盾防御
+     * @param mod AltoClef实例
+     */
     private void stopShielding(AltoClef mod) {
         if (shielding) {
             ItemStack cursor = StorageHelper.getItemStackInCursorSlot();
@@ -141,10 +164,19 @@ public class MobDefenseChain extends SingleTaskChain {
         }
     }
 
+    /**
+     * 检查是否正在护盾防御
+     * @return 如果正在护盾防御则返回true
+     */
     public boolean isShielding() {
         return shielding || killAura.isShielding();
     }
 
+    /**
+     * 检查是否需要躲避龙息
+     * @param mod AltoClef实例
+     * @return 如果需要躲避龙息则返回true
+     */
     private boolean escapeDragonBreath(AltoClef mod) {
         dragonBreathTracker.updateBreath(mod);
         for (BlockPos playerIn : WorldHelper.getBlocksTouchingPlayer()) {
@@ -155,6 +187,10 @@ public class MobDefenseChain extends SingleTaskChain {
         return false;
     }
 
+    /**
+     * 获取内部优先级
+     * @return 优先级值
+     */
     private float getPriorityInner() {
         if (!AltoClef.inGame()) {
             return Float.NEGATIVE_INFINITY;
@@ -171,18 +207,18 @@ public class MobDefenseChain extends SingleTaskChain {
             needsChangeOnAttack = false;
         }
 
-        // Put out fire if we're standing on one like an idiot
+        // 灭火，如果我们像傻瓜一样站在火上
         BlockPos fireBlock = isInsideFireAndOnFire(mod);
         if (fireBlock != null) {
             putOutFire(mod, fireBlock);
             wasPuttingOutFire = true;
         } else {
-            // Stop putting stuff out if we no longer need to put out a fire.
+            // 如果不再需要灭火，则停止灭火
             mod.getClientBaritone().getInputOverrideHandler().setInputForceState(Input.CLICK_LEFT, false);
             wasPuttingOutFire = false;
         }
 
-        // Run away if a weird mob is close by.
+        // 如果附近有危险的怪物就逃跑
         Optional<Entity> universallyDangerous = getUniversallyDangerousMob(mod);
         if (universallyDangerous.isPresent() && mod.getPlayer().getHealth() <= 10) {
             runAwayTask = new RunAwayFromHostilesTask(DANGER_KEEP_DISTANCE, true);
@@ -193,7 +229,7 @@ public class MobDefenseChain extends SingleTaskChain {
         doingFunkyStuff = false;
         PlayerSlot offhandSlot = PlayerSlot.OFFHAND_SLOT;
         Item offhandItem = StorageHelper.getItemStackInSlot(offhandSlot).getItem();
-        // Run away from creepers
+        // 远离苦力怕
         CreeperEntity blowingUp = getClosestFusingCreeper(mod);
         if (blowingUp != null) {
             if ((!mod.getFoodChain().needsToEat() || mod.getPlayer().getHealth() < 9)
@@ -217,7 +253,7 @@ public class MobDefenseChain extends SingleTaskChain {
             }
         }
         synchronized (BaritoneHelper.MINECRAFT_LOCK) {
-            // Block projectiles with shield
+            // 用护盾阻挡投射物
             if (mod.getModSettings().isDodgeProjectiles()
                     && hasShield(mod)
                     && !mod.getPlayer().getItemCooldownManager().isCoolingDown(offhandItem)
@@ -243,10 +279,10 @@ public class MobDefenseChain extends SingleTaskChain {
             return Float.NEGATIVE_INFINITY;
         }
 
-        // Force field
+        // 力场
         doForceField(mod);
 
-        // Dodge projectiles
+        // 躲避投射物
         if (mod.getPlayer().getHealth() <= 10 && !hasShield(mod)) {
 
             if (StorageHelper.getNumberOfThrowawayBlocks(mod) > 0 && !mod.getFoodChain().needsToEat()
@@ -260,7 +296,7 @@ public class MobDefenseChain extends SingleTaskChain {
             setTask(runAwayTask);
             return 65;
         }
-        // Dodge all mobs cause we boutta die son
+        // 避开所有怪物，因为我们快死了
         if (isInDanger(mod) && !escapeDragonBreath(mod) && !mod.getFoodChain().isShouldStop()) {
             if (targetEntity == null || WorldHelper.isSurroundedByHostiles()) {
                 runAwayTask = new RunAwayFromHostilesTask(DANGER_KEEP_DISTANCE, true);
@@ -270,7 +306,7 @@ public class MobDefenseChain extends SingleTaskChain {
         }
 
         if (mod.getModSettings().shouldDealWithAnnoyingHostiles()) {
-            // Deal with hostiles because they are annoying.
+            // 处理敌对生物，因为它们很烦人
             List<LivingEntity> hostiles = mod.getEntityTracker().getHostiles();
 
             List<LivingEntity> toDealWithList = new ArrayList<>();
@@ -290,7 +326,7 @@ public class MobDefenseChain extends SingleTaskChain {
                         }
                     }
 
-                    // Give each hostile a timer, if they're close for too long deal with them.
+                    // 给每个敌对生物一个计时器，如果它们接近太久就处理它们
                     if (hostile.isInRange(mod.getPlayer(), annoyingRange) && LookHelper.seesPlayer(hostile, mod.getPlayer(), annoyingRange)) {
 
                         boolean isIgnored = false;
@@ -301,7 +337,7 @@ public class MobDefenseChain extends SingleTaskChain {
                             }
                         }
 
-                        // do not go and "attack" these mobs, just hit them if on low HP, or they are close
+                        // 不要攻击这些怪物，只有在低血量或距离很近时才攻击
                         if (isIgnored) {
                             if (mod.getPlayer().getHealth() <= 10) {
                                 toDealWithList.add(hostile);
@@ -313,12 +349,12 @@ public class MobDefenseChain extends SingleTaskChain {
                 }
             }
 
-            // attack entities closest to the player first
+            // 优先攻击距离玩家最近的实体
             toDealWithList.sort(Comparator.comparingDouble((entity) -> mod.getPlayer().distanceTo(entity)));
 
             if (!toDealWithList.isEmpty()) {
 
-                // Depending on our weapons/armor, we may choose to straight up kill hostiles if we're not dodging their arrows.
+                // 根据我们的武器/护甲，如果我们不躲避箭矢，我们可能会选择直接杀死敌对生物
                 SwordItem bestSword = getBestSword(mod);
 
                 int armor = mod.getPlayer().getArmor();
@@ -329,12 +365,12 @@ public class MobDefenseChain extends SingleTaskChain {
                 int canDealWith = (int) Math.ceil((armor * 3.6 / 20.0) + (damage * 0.8) + (shield));
 
                 if (canDealWith >= getDangerousnessScore(toDealWithList) || needsChangeOnAttack) {
-                    // we just decided to attack, so we should either get it, or hit something before running away again
+                    // 我们决定攻击，所以我们应该要么获取它，要么在再次逃跑前击中一些东西
                     if (!(mainTask instanceof KillEntitiesTask)) {
                         needsChangeOnAttack = true;
                     }
 
-                    // We can deal with it.
+                    // 我们可以处理它
                     runAwayTask = null;
                     Entity toKill = toDealWithList.get(0);
                     lockedOnEntity = toKill;
@@ -342,15 +378,15 @@ public class MobDefenseChain extends SingleTaskChain {
                     setTask(new KillEntitiesTask(toKill.getClass()));
                     return 65;
                 } else {
-                    // We can't deal with it
+                    // 我们无法处理它
                     runAwayTask = new RunAwayFromHostilesTask(DANGER_KEEP_DISTANCE, true);
                     setTask(runAwayTask);
                     return 80;
                 }
             }
         }
-        // By default, if we aren't "immediately" in danger but were running away, keep
-        // running away until we're good.
+        // 默认情况下，如果我们不是"立即"危险但正在逃跑，继续
+        // 逃跑直到安全
         if (runAwayTask != null && !runAwayTask.isFinished()) {
             setTask(runAwayTask);
             return cachedLastPriority;
@@ -369,10 +405,20 @@ public class MobDefenseChain extends SingleTaskChain {
         return 0;
     }
 
+    /**
+     * 检查是否拥有护盾
+     * @param mod AltoClef实例
+     * @return 如果拥有护盾则返回true
+     */
     private static boolean hasShield(AltoClef mod) {
         return mod.getItemStorage().hasItem(Items.SHIELD) || mod.getItemStorage().hasItemInOffhand(Items.SHIELD);
     }
 
+    /**
+     * 获取最佳剑
+     * @param mod AltoClef实例
+     * @return 最佳剑
+     */
     private static SwordItem getBestSword(AltoClef mod) {
         Item[] SWORDS = new Item[]{Items.NETHERITE_SWORD, Items.DIAMOND_SWORD, Items.IRON_SWORD, Items.GOLDEN_SWORD,
                 Items.STONE_SWORD, Items.WOODEN_SWORD};
@@ -387,6 +433,11 @@ public class MobDefenseChain extends SingleTaskChain {
         return bestSword;
     }
 
+    /**
+     * 检查是否站在火上且着火
+     * @param mod AltoClef实例
+     * @return 如果站在火上且着火则返回火块位置，否则返回null
+     */
     private BlockPos isInsideFireAndOnFire(AltoClef mod) {
         boolean onFire = mod.getPlayer().isOnFire();
         if (!onFire) return null;
@@ -411,6 +462,11 @@ public class MobDefenseChain extends SingleTaskChain {
         return null;
     }
 
+    /**
+     * 灭火
+     * @param mod AltoClef实例
+     * @param pos 火块位置
+     */
     private void putOutFire(AltoClef mod, BlockPos pos) {
         Optional<Rotation> reach = LookHelper.getReach(pos);
         if (reach.isPresent()) {
@@ -424,10 +480,14 @@ public class MobDefenseChain extends SingleTaskChain {
         }
     }
 
+    /**
+     * 执行力场防御
+     * @param mod AltoClef实例
+     */
     private void doForceField(AltoClef mod) {
         killAura.tickStart();
 
-        // Hit all hostiles close to us.
+        // 攻击所有接近我们的敌对生物
         List<Entity> entities = mod.getEntityTracker().getCloseEntities();
         try {
             for (Entity entity : entities) {
@@ -440,7 +500,7 @@ public class MobDefenseChain extends SingleTaskChain {
                         }
                     }
                 } else if (entity instanceof FireballEntity) {
-                    // Ghast ball
+                    // 恶魂火球
                     shouldForce = true;
                 }
 
@@ -455,6 +515,11 @@ public class MobDefenseChain extends SingleTaskChain {
     }
 
 
+    /**
+     * 获取最近的引燃苦力怕
+     * @param mod AltoClef实例
+     * @return 最近的引燃苦力怕，如果没有则返回null
+     */
     private CreeperEntity getClosestFusingCreeper(AltoClef mod) {
         double worstSafety = Float.POSITIVE_INFINITY;
         CreeperEntity target = null;
@@ -464,22 +529,27 @@ public class MobDefenseChain extends SingleTaskChain {
                 if (creeper == null) continue;
                 if (creeper.getClientFuseTime(1) < 0.001) continue;
 
-                // We want to pick the closest creeper, but FIRST pick creepers about to blow
-                // At max fuse, the cost goes to basically zero.
+                // 我们想选择最近的苦力怕，但首先选择即将爆炸的苦力怕
+                // 在最大引燃时间时，成本基本为零
                 double safety = getCreeperSafety(mod.getPlayer().getPos(), creeper);
                 if (safety < worstSafety) {
                     target = creeper;
                 }
             }
         } catch (ConcurrentModificationException | ArrayIndexOutOfBoundsException | NullPointerException e) {
-            // IDK why but these exceptions happen sometimes. It's extremely bizarre and I
-            // have no idea why.
-            Debug.logWarning("Weird Exception caught and ignored while scanning for creepers: " + e.getMessage());
+            // 我不知道为什么，但这些异常有时会发生。这非常奇怪，我
+            // 不知道为什么
+            Debug.logWarning("扫描苦力怕时捕获并忽略奇怪的异常: " + e.getMessage());
             return target;
         }
         return target;
     }
 
+    /**
+     * 检查是否有投射物接近
+     * @param mod AltoClef实例
+     * @return 如果有接近的投射物则返回true
+     */
     private boolean isProjectileClose(AltoClef mod) {
         List<CachedProjectile> projectiles = mod.getEntityTracker().getProjectiles();
         try {
@@ -495,15 +565,15 @@ public class MobDefenseChain extends SingleTaskChain {
                             LookHelper.lookAt(mod, ghast.get().getEyePos());
                         }
                         return false;
-                        // Ignore ghast balls
+                        // 忽略恶魂火球
                     }
                     if (projectile.projectileType == DragonFireballEntity.class) {
-                        // Ignore dragon fireballs
+                        // 忽略龙火球
                         continue;
                     }
                     if (projectile.projectileType == ArrowEntity.class || projectile.projectileType == SpectralArrowEntity.class || projectile.projectileType == SmallFireballEntity.class) {
-                        // check if the projectile is going away from us
-                        // not so fancy math... this should work better than the previous approach (I hope just adding the velocity doesn't cause any issues..)
+                        // 检查投射物是否正在远离我们
+                        // 不太复杂的数学...这应该比之前的方法更好（我希望只添加速度不会引起任何问题..）
                         PlayerEntity player = mod.getPlayer();
                         if (player.squaredDistanceTo(projectile.position) < player.squaredDistanceTo(projectile.position.add(projectile.velocity))) {
                             continue;
@@ -532,11 +602,11 @@ public class MobDefenseChain extends SingleTaskChain {
             Debug.logWarning(e.getMessage());
         }
 
-        // TODO refactor this into something more reliable for all mobs
+        // TODO 将此重构为对所有怪物更可靠的方法
         for (SkeletonEntity skeleton : mod.getEntityTracker().getTrackedEntities(SkeletonEntity.class)) {
             if (skeleton.distanceTo(mod.getPlayer()) > 10 || !skeleton.canSee(mod.getPlayer())) continue;
 
-            // when the skeleton is about to shoot (it takes 5 ticks to raise the shield)
+            // 当骷髅即将射击时（举起护盾需要5个刻度）
             if (skeleton.getItemUseTime() > 15) {
                 return true;
             }
@@ -545,9 +615,14 @@ public class MobDefenseChain extends SingleTaskChain {
         return false;
     }
 
+    /**
+     * 获取普遍危险的怪物
+     * @param mod AltoClef实例
+     * @return 危险怪物的可选对象
+     */
     private Optional<Entity> getUniversallyDangerousMob(AltoClef mod) {
-        // Wither skeletons are dangerous because of the wither effect. Oof kinda obvious.
-        // If we merely force field them, we will run into them and get the wither effect which will kill us.
+        // 凋零骷髅很危险，因为凋零效果。嗯，有点明显。
+        // 如果我们只是力场它们，我们会撞到它们并获得凋零效果，这会杀死我们。
 
         Class<?>[] dangerousMobs = new Class[]{Entities.WARDEN, WitherEntity.class, WitherSkeletonEntity.class,
                 HoglinEntity.class, ZoglinEntity.class, PiglinBruteEntity.class, VindicatorEntity.class};
@@ -567,6 +642,11 @@ public class MobDefenseChain extends SingleTaskChain {
         return Optional.empty();
     }
 
+    /**
+     * 检查是否处于危险中
+     * @param mod AltoClef实例
+     * @return 如果处于危险则返回true
+     */
     private boolean isInDanger(AltoClef mod) {
         boolean witchNearby = mod.getEntityTracker().entityFound(WitchEntity.class);
 
@@ -579,7 +659,7 @@ public class MobDefenseChain extends SingleTaskChain {
             return true;
         }
         if (WorldHelper.isVulnerable()) {
-            // If hostile mobs are nearby...
+            // 如果附近有敌对生物...
             try {
                 ClientPlayerEntity player = mod.getPlayer();
                 List<LivingEntity> hostiles = mod.getEntityTracker().getHostiles();
@@ -594,49 +674,71 @@ public class MobDefenseChain extends SingleTaskChain {
                     }
                 }
             } catch (Exception e) {
-                Debug.logWarning("Weird multithread exception. Will fix later. " + e.getMessage());
+                Debug.logWarning("奇怪的多线程异常。稍后修复。 " + e.getMessage());
             }
         }
         return false;
     }
 
+    /**
+     * 设置目标实体
+     * @param entity 目标实体
+     */
     public void setTargetEntity(Entity entity) {
         targetEntity = entity;
     }
 
+    /**
+     * 重置目标实体
+     */
     public void resetTargetEntity() {
         targetEntity = null;
     }
 
+    /**
+     * 设置力场范围
+     * @param range 力场范围
+     */
     public void setForceFieldRange(double range) {
         killAura.setRange(range);
     }
 
+    /**
+     * 重置力场
+     */
     public void resetForceField() {
         killAura.setRange(Double.POSITIVE_INFINITY);
     }
 
+    /**
+     * 检查是否正在做特殊操作
+     * @return 如果正在做特殊操作则返回true
+     */
     public boolean isDoingAcrobatics() {
         return doingFunkyStuff;
     }
 
+    /**
+     * 检查是否正在灭火
+     * @return 如果正在灭火则返回true
+     */
     public boolean isPuttingOutFire() {
         return wasPuttingOutFire;
     }
 
     @Override
     public boolean isActive() {
-        // We're always checking for mobs
+        // 我们始终在检查怪物
         return true;
     }
 
     @Override
     protected void onTaskFinish(AltoClef mod) {
-        // Task is done, so I guess we move on?
+        // 任务完成，所以我想我们继续前进？
     }
 
     @Override
     public String getName() {
-        return "Mob Defense";
+        return "怪物防御";
     }
 }

@@ -4,6 +4,10 @@ import adris.altoclef.util.ItemTarget;
 import adris.altoclef.util.MiningRequirement;
 import adris.altoclef.util.helpers.ItemHelper;
 
+/**
+ * 收集树苗任务
+ * 用于收集各种树苗，使用手挖掘树叶获得
+ */
 public class CollectSaplingsTask extends MineAndCollectTask {
     public CollectSaplingsTask(int count) {
         super(new ItemTarget(ItemHelper.SAPLINGS, count), ItemHelper.SAPLING_SOURCES,
