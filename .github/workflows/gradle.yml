@@ -28,12 +28,12 @@ jobs:
       - name: 赋予 gradlew 可执行权限
         run: chmod +x gradlew
 
-      - name: 创建 versions 目录并写入 mainProject
-        run: |
-          mkdir -p ./versions
-          if [ ! -f ./versions/mainProject ]; then
-            echo "$LATEST_VERSION" > ./versions/mainProject
-          fi
+      # - name: 创建 versions 目录并写入 mainProject
+      #   run: |
+      #     mkdir -p ./versions
+      #     if [ ! -f ./versions/mainProject ]; then
+      #       echo "$LATEST_VERSION" > ./versions/mainProject
+      #     fi
 
       - name: 使用 Gradle 构建
         run: ./gradlew build --stacktrace
