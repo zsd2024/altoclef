@@ -8,9 +8,18 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * 实体版本适配器
+ * 提供不同 Minecraft 版本之间实体相关API的兼容层
+ */
 public class EntityVer {
 
-
+    /**
+     * 检查实体是否在地狱传送门中
+     * 
+     * @param entity 要检查的实体
+     * @return 如果实体在地狱传送门中返回true，否则返回false
+     */
     @Pattern
     public boolean isInNetherPortal(Entity entity) {
         //#if MC <= 12006
@@ -20,6 +29,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的传送门冷却时间
+     * 
+     * @param entity 实体实例
+     * @return 传送门冷却时间
+     */
     @Pattern
     public int getPortalCooldown(Entity entity) {
         //#if MC >= 12001
@@ -29,7 +44,12 @@ public class EntityVer {
         //#endif
     }
 
-
+    /**
+     * 获取实体的着陆位置
+     * 
+     * @param entity 实体实例
+     * @return 着陆位置的方块坐标
+     */
     @Pattern
     public BlockPos getLandingPos(Entity entity) {
         //#if MC >= 11701
@@ -39,6 +59,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的俯仰角（pitch）
+     * 
+     * @param player 实体实例
+     * @return 俯仰角度值
+     */
     @Pattern
     private static float getPitch(Entity player) {
         //#if MC >= 11701
@@ -48,6 +74,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的偏航角（yaw）
+     * 
+     * @param player 实体实例
+     * @return 偏航角度值
+     */
     @Pattern
     private static float getYaw(Entity player) {
         //#if MC >= 11701
@@ -57,6 +89,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 设置实体的俯仰角（pitch）
+     * 
+     * @param player 实体实例
+     * @param value 俯仰角度值
+     */
     @Pattern
     private static void setPitch(Entity player, float value) {
         //#if MC >= 11701
@@ -66,6 +104,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 设置实体的偏航角（yaw）
+     * 
+     * @param player 实体实例
+     * @param value 偏航角度值
+     */
     @Pattern
     private static void setYaw(Entity player, float value) {
         //#if MC >= 11701
@@ -75,6 +119,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的眼睛位置
+     * 
+     * @param entity 实体实例
+     * @return 眼睛位置的三维向量
+     */
     @Pattern
     private static Vec3d getEyePos(Entity entity) {
         //#if MC >= 11701
@@ -84,6 +134,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体所在的区块位置
+     * 
+     * @param entity 实体实例
+     * @return 区块位置
+     */
     @Pattern
     private static ChunkPos getChunkPos(Entity entity) {
         //#if MC >= 11701
@@ -93,6 +149,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的X轴方块坐标
+     * 
+     * @param entity 实体实例
+     * @return X轴方块坐标
+     */
     @Pattern
     private static int getBlockX(Entity entity) {
         //#if MC >= 11701
@@ -102,6 +164,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的Y轴方块坐标
+     * 
+     * @param entity 实体实例
+     * @return Y轴方块坐标
+     */
     @Pattern
     private static int getBlockY(Entity entity) {
         //#if MC >= 11701
@@ -111,6 +179,12 @@ public class EntityVer {
         //#endif
     }
 
+    /**
+     * 获取实体的Z轴方块坐标
+     * 
+     * @param entity 实体实例
+     * @return Z轴方块坐标
+     */
     @Pattern
     private static int getBlockZ(Entity entity) {
         //#if MC >= 11701
@@ -119,5 +193,4 @@ public class EntityVer {
         //$$ return adris.altoclef.multiversion.entity.EntityHelper.getBlockZ(entity);
         //#endif
     }
-
 }
