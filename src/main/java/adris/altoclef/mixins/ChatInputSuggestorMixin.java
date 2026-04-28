@@ -36,44 +36,96 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Mixin responsible for highlighting our custom commands.
- * This class is an absolute monstrosity, but the command system is not touched often anyway, so I will leave it like this for now.
+ * 聊天输入建议器混入类，负责高亮显示自定义命令。
+ * 此类代码结构复杂，但由于命令系统不常修改，暂时保持现状。
  */
 @Mixin(ChatInputSuggestor.class)
 public abstract class ChatInputSuggestorMixin {
 
+    /**
+     * 分号样式：浅紫色
+     */
     @Unique
     private static final Style SEMICOLOMN_STYLE = Style.EMPTY.withColor(Formatting.LIGHT_PURPLE);
+    
+    /**
+     * 错误文本样式（通过Mixin注入）
+     */
     @Shadow
     @Final
     private static Style ERROR_STYLE;
+    
+    /**
+     * 信息文本样式（通过Mixin注入）
+     */
     @Shadow
     @Final
     private static Style INFO_STYLE;
+    
+    /**
+     * 高亮样式列表（通过Mixin注入）
+     */
     @Shadow
     @Final
     private static List<Style> HIGHLIGHT_STYLES;
+    
+    /**
+     * 文本输入框（通过Mixin注入）
+     */
     @Shadow
     @Final
     private TextFieldWidget textField;
+    
+    /**
+     * 消息列表（通过Mixin注入）
+     */
     @Shadow
     @Final
     private List<OrderedText> messages;
 
+    /**
+     * 消息宽度（通过Mixin注入）
+     */
     @Shadow
     private int width;
+    
+    /**
+     * 所属屏幕（通过Mixin注入）
+     */
     @Shadow
     @Final
     private Screen owner;
 
+    /**
+     * 消息X坐标（通过Mixin注入）
+     */
     @Shadow
     private int x;
+    
+    /**
+     * 文本渲染器（通过Mixin注入）
+     */
     @Shadow
     @Final
     private TextRenderer textRenderer;
+    
+    /**
+     * 解析缓存，用于避免重复解析相同的文本
+     */
     @Unique
     private final HashMap<Pair<String, Integer>, Pair<MutableText, Optional<Pair<MutableText, Integer>>>> parseCache = new HashMap<>();
 
+    /**
+     * 添加带样式的文本到列表中
+     * 
+     * @param styledText 带样式的文本对列表
+     * @param original 原始字符串
+     * @param currentStr 当前字符串
+     * @param style 样式
+     * @param reader 字符串读取器
+     * @return 处理后的剩余字符串
+     * @throws CommandException 命令异常
+     */
     @Unique
     private static String addStyledText(List<Pair<String, Style>> styledText, String original, String currentStr, Style style, StringReader reader) throws CommandException {
         if (!reader.hasNext()) {
@@ -90,15 +142,28 @@ public abstract class ChatInputSuggestorMixin {
         return currentStr.substring(index);
     }
 
+    /**
+     * 在刷新时清空解析缓存
+     * 
+     * @param ci 回调信息
+     */
     @Inject(method = "refresh", at = @At("HEAD"))
     public void injectRefresh(CallbackInfo ci) {
         parseCache.clear();
     }
 
+    /**
+     * 注入提供渲染文本的方法，处理自定义命令的高亮显示
+     * 
+     * @param original 原始文本
+     * @param firstCharacterIndex 第一个字符索引
+     * @param cir 回调信息返回值
+     */
     @Inject(method = "provideRenderText", at = @At("HEAD"), cancellable = true)
     public void inj(String original, int firstCharacterIndex, CallbackInfoReturnable<OrderedText> cir) {
         String full = this.textField.getText();
 
+        // 如果不是以命令前缀开头，直接返回
         if (!full.startsWith(AltoClef.getCommandExecutor().getCommandPrefix())) return;
 
         Pair<String, Integer> key = new Pair<>(original, firstCharacterIndex);
@@ -131,6 +196,14 @@ public abstract class ChatInputSuggestorMixin {
         cir.setReturnValue(result.getLeft().asOrderedText());
     }
 
+    /**
+     * 高亮显示文本
+     * 
+     * @param original 原始文本
+     * @param firstCharacterIndex 第一个字符索引
+     * @param full 完整文本
+     * @return 包含高亮文本和错误信息的配对
+     */
     @Unique
     private Pair<MutableText, Optional<Pair<MutableText, Integer>>> highlightText(String original, int firstCharacterIndex, String full) {
         MutableText text = Text.empty();
@@ -149,7 +222,7 @@ public abstract class ChatInputSuggestorMixin {
 
                 if (command.endsWith(" ") && (i+1) < split.length) {
                     errorSeverity = 2;
-                    errorMsg = buildErrorMessage("Unexpected argument", full, index);
+                    errorMsg = buildErrorMessage("意外的参数", full, index);
                 } else if (command.isBlank()) {
                     errorSeverity = Math.max(errorSeverity, 1);
                 }
@@ -224,6 +297,15 @@ public abstract class ChatInputSuggestorMixin {
         return new Pair<>(text, Optional.empty());
     }
 
+    /**
+     * 获取带样式的文本
+     * 
+     * @param s 输入字符串
+     * @param maxLen 最大长度
+     * @param showUnfinishedErrors 是否显示未完成的错误
+     * @return 包含样式文本列表和错误信息的配对
+     * @throws CommandException 命令异常
+     */
     @Unique
     private Pair<List<Pair<String, Style>>, Pair<Integer, MutableText>> getText(String s, int maxLen, boolean showUnfinishedErrors) throws CommandException {
         CommandExecutor executor = AltoClef.getCommandExecutor();
@@ -244,7 +326,7 @@ public abstract class ChatInputSuggestorMixin {
         Command command = executor.get(cmd);
 
         if (command == null) {
-            MutableText error = Text.literal("Unknown command '" + cmd + "'");
+            MutableText error = Text.literal("未知命令 '" + cmd + "'");
 
             ArrayList<Pair<String, Style>> res = new ArrayList<>();
             if (hasPrefix) {
@@ -270,7 +352,7 @@ public abstract class ChatInputSuggestorMixin {
             Arg<?> arg = args[i];
             if (!reader.hasNext()) {
                 if (!arg.hasDefault) {
-                    errorMsg = buildErrorMessage("Expected " + arg.getTypeName(), original + " ", original.length() + 1);
+                    errorMsg = buildErrorMessage("需要 " + arg.getTypeName(), original + " ", original.length() + 1);
                     errorSeverity = 2;
                 }
                 break;
@@ -319,7 +401,7 @@ public abstract class ChatInputSuggestorMixin {
             styledText.add(new Pair<>(s, this.ERROR_STYLE));
 
             if (errorMsg == null) {
-                errorMsg = buildErrorMessage("Unexpected argument", original, reader.getIndex());
+                errorMsg = buildErrorMessage("意外的参数", original, reader.getIndex());
             }
             errorSeverity = 2;
         }
@@ -327,6 +409,14 @@ public abstract class ChatInputSuggestorMixin {
         return new Pair<>(styledText, new Pair<>(errorSeverity, errorMsg));
     }
 
+    /**
+     * 构建错误消息
+     * 
+     * @param message 错误消息
+     * @param original 原始字符串
+     * @param index 错误位置索引
+     * @return 错误消息文本
+     */
     @Unique
     private MutableText buildErrorMessage(String message, String original, int index) {
         String substr = original.substring(0, index);
@@ -344,7 +434,7 @@ public abstract class ChatInputSuggestorMixin {
 
         return
                 Text.literal(message)
-                        .append(Text.literal(" at position " + index + ": " + substr + " <--[HERE]"));
+                        .append(Text.literal(" 在位置 " + index + ": " + substr + " <--[此处]"));
     }
 
 }

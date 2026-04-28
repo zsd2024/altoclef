@@ -14,13 +14,26 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * 客户端方块破坏混入类，用于监听方块破坏事件
+ */
 @Mixin(ClientPlayerInteractionManager.class)
 public final class ClientBlockBreakMixin {
 
-    // for SOME REASON baritone triggers a block cancel breaking every other frame, so we have a 2 frame requirement for that?
+    /**
+     * 方块破坏取消帧计数器
+     * 由于Baritone每两帧会触发一次方块破坏取消，因此需要2帧的要求
+     */
     @Unique
     private static int _breakCancelFrames;
 
+    /**
+     * 注入方块破坏进度更新方法，发布方块破坏事件
+     * 
+     * @param pos 方块位置
+     * @param direction 破坏方向
+     * @param ci 回调信息返回值
+     */
     @Inject(
             method = "updateBlockBreakingProgress",
             at = @At("HEAD")
@@ -33,6 +46,11 @@ public final class ClientBlockBreakMixin {
         }
     }
 
+    /**
+     * 注入取消方块破坏方法，发布方块破坏取消事件
+     * 
+     * @param ci 回调信息
+     */
     @Inject(
             method = "cancelBlockBreaking",
             at = @At("HEAD")

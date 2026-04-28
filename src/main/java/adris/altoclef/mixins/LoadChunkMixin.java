@@ -21,18 +21,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.BitSet;
 import java.util.function.Consumer;
 
+/**
+ * 客户端区块管理器混入类
+ * 监听区块加载和卸载事件，并发布相应事件
+ */
 @Mixin(ClientChunkManager.class)
 public class LoadChunkMixin {
 
     /**
-     * Loads a chunk from a packet and executes necessary actions.
+     * 从数据包加载区块并执行必要操作
      *
-     * @param x        The x-coordinate of the chunk.
-     * @param z        The z-coordinate of the chunk.
-     * @param buf      The packet containing the chunk data.
-     * @param nbt      The NBT compound of the chunk.
-     * @param consumer A consumer for visiting block entities in the chunk.
-     * @param ci       The callback info returnable object.
+     * @param x        区块的x坐标
+     * @param z        区块的z坐标
+     * @param buf      包含区块数据的数据包
+     * @param nbt      区块的NBT复合标签
+     * @param consumer 用于访问区块中方块实体的消费者
+     * @param cir      可返回回调信息对象
      */
     @Inject(
             method = "loadChunkFromPacket",
@@ -45,15 +49,15 @@ public class LoadChunkMixin {
     //#else
     //$$ private void onLoadChunk(int x, int z, BiomeArray biomes, PacketByteBuf buf, NbtCompound tag, int verticalStripBitmask, boolean complete, CallbackInfoReturnable<WorldChunk> cir) {
     //#endif
-        // Publish a ChunkLoadEvent with the return value of the method as the argument
+        // 使用方法的返回值作为参数发布区块加载事件
         EventBus.publish(new ChunkLoadEvent(cir.getReturnValue()));
     }
 
     /**
-     * Publishes a ChunkUnloadEvent when a chunk is unloaded.
+     * 当区块被卸载时发布区块卸载事件
      *
-     * @param pos The position of the unloaded chunk.
-     * @param ci  The callback info object.
+     * @param pos 卸载的区块位置
+     * @param ci  回调信息对象
      */
     @Inject(
             method = "unload",
