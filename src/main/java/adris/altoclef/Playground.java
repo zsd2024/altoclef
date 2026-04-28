@@ -44,20 +44,25 @@ import java.util.Optional;
 import java.util.Scanner;
 
 /**
- * For testing.
- * <p>
- * As solonovamax suggested, this stuff should REALLY be moved to unit tests
- * https://github.com/adrisj7-AltoClef/altoclef/pull/7#discussion_r641792377
- * but getting timed tests and testing worlds set up in Minecraft might be
- * challenging, so this is the temporary resting place for garbage test code for now.
+ * 调试游乐场类
+ * 
+ * 用于测试各种功能的临时代码存放地。
+ * 如solonovamax所建议，这些代码应该真正移到单元测试中，
+ * 但在Minecraft中设置定时测试和测试世界可能具有挑战性，
+ * 因此这是垃圾测试代码的临时存放地。
  */
 @SuppressWarnings("EnhancedSwitchMigration")
 public class Playground {
 
+    /**
+     * 空闲测试初始化函数
+     * 在模组启动时调用，用于执行一次性测试代码
+     * @param mod AltoClef模组实例
+     */
     public static void IDLE_TEST_INIT_FUNCTION(AltoClef mod) {
-        // Test code here
+        // 测试代码放在这里
 
-        // Print all uncatalogued resources as well as resources that don't have a corresponding item
+        // 打印所有未编目的资源以及没有对应物品的资源
         /*
         Set<String> collectable = new HashSet<>(TaskCatalogue.resourceNames());
         Set<String> allItems = new HashSet<>();
@@ -91,44 +96,55 @@ public class Playground {
             return result.toString();
         };
 
-        Debug.logInternal("NOT COLLECTED YET:\n" + temp.apply(notCollected));
+        Debug.logInternal("尚未收集:\n" + temp.apply(notCollected));
         Debug.logInternal("\n\n\n");
-        Debug.logInternal("NOT ITEMS:\n" + temp.apply(notAnItem));
+        Debug.logInternal("不是物品:\n" + temp.apply(notAnItem));
         */
 
-        /* Print all catalogued resources
+        /* 打印所有已编目的资源
 
         List<String> resources = new ArrayList<>(TaskCatalogue.resourceNames());
         resources.sort(String::compareTo);
-        StringBuilder result = new StringBuilder("ALL RESOURCES:\n");
+        StringBuilder result = new StringBuilder("所有资源:\n");
         for (String name : resources) {
             result.append(name).append("\n");
         }
-        Debug.logInternal("We got em:\n" + result.toString());
+        Debug.logInternal("我们有这些:\n" + result.toString());
 
          */
     }
 
+    /**
+     * 空闲测试Tick函数
+     * 在游戏每帧调用，用于执行持续性测试代码
+     * @param mod AltoClef模组实例
+     */
     public static void IDLE_TEST_TICK_FUNCTION(AltoClef mod) {
-        // Test code here
+        // 测试代码放在这里
     }
 
+    /**
+     * 临时测试函数
+     * 根据传入的参数执行不同的测试任务
+     * @param mod AltoClef模组实例
+     * @param arg 测试参数
+     */
     public static void TEMP_TEST_FUNCTION(AltoClef mod, String arg) {
         //mod.runUserTask();
-        Debug.logMessage("Running test...");
+        Debug.logMessage("正在运行测试...");
 
         switch (arg) {
             case "":
-                // None specified
-                Debug.logWarning("Please specify a test (ex. stacked, bed, terminate)");
+                // 未指定测试
+                Debug.logWarning("请指定一个测试 (例如: stacked, bed, terminate)");
                 break;
             case "pickup":
                 mod.runUserTask(new PickupDroppedItemTask(new ItemTarget(Items.RAW_IRON, 3), true));
                 break;
             case "chunk": {
-                // We may have missed a chunk that's far away...
+                // 我们可能会错过一个很远的区块...
                 BlockPos p = new BlockPos(100000, 3, 100000);
-                Debug.logMessage("LOADED? " + (!(mod.getWorld().getChunk(p) instanceof EmptyChunk)));
+                Debug.logMessage("已加载? " + (!(mod.getWorld().getChunk(p) instanceof EmptyChunk)));
                 break;
             }
             case "structure":
@@ -144,10 +160,10 @@ public class Playground {
                 break;
             }
             case "stacked":
-                // It should only need:
-                // 24 (armor) + 3*3 (pick) + 2 = 35 diamonds
-                // 2*3 (pick) + 1 = 7 sticks
-                // 4 planks
+                // 它只需要:
+                // 24 (盔甲) + 3*3 (镐) + 2 = 35 钻石
+                // 2*3 (镐) + 1 = 7 木棍
+                // 4 木板
                 /*
                 mod.runUserTask(TaskCatalogue.getSquashedItemTask(
                         new ItemTarget("diamond_chestplate", 1),
@@ -179,11 +195,11 @@ public class Playground {
                 mod.runUserTask(new ConstructIronGolemTask());
                 break;
             case "avoid":
-                // Test block break predicate
+                // 测试方块破坏谓词
                 mod.getBehaviour().avoidBlockBreaking((BlockPos b) -> (-1000 < b.getX() && b.getX() < 1000)
                         && (-1000 < b.getY() && b.getY() < 1000)
                         && (-1000 < b.getZ() && b.getZ() < 1000));
-                Debug.logMessage("Testing avoid from -1000, -1000, -1000 to 1000, 1000, 1000");
+                Debug.logMessage("测试避免破坏从 -1000, -1000, -1000 到 1000, 1000, 1000 的区域");
                 break;
             case "portal":
                 //mod.runUserTask(new EnterNetherPortalTask(new ConstructNetherPortalBucketTask(), Dimension.NETHER));
@@ -192,14 +208,14 @@ public class Playground {
             case "kill":
                 List<ZombieEntity> zombs = mod.getEntityTracker().getTrackedEntities(ZombieEntity.class);
                 if (zombs.size() == 0) {
-                    Debug.logWarning("No zombs found.");
+                    Debug.logWarning("未找到僵尸。");
                 } else {
                     LivingEntity entity = zombs.get(0);
                     mod.runUserTask(new KillEntityTask(entity));
                 }
                 break;
             case "craft":
-                // Test de-equip
+                // 测试卸装备
                 new Thread(() -> {
                     for (int i = 3; i > 0; --i) {
                         Debug.logMessage(i + "...");
@@ -217,17 +233,17 @@ public class Playground {
 
                     InventoryTracker t = mod.getItemStorage();
 
-                    // Already equipped
+                    // 已经装备
                     if (t.getItemStackInSlot(target).getItem() == toEquip) {
-                        Debug.logMessage("Already equipped.");
+                        Debug.logMessage("已经装备。");
                     } else {
                         List<Integer> itemSlots = t.getInventorySlotsWithItem(toEquip);
                         if (itemSlots.size() != 0) {
                             int slot = itemSlots.get(0);
                             t.swapItems(Slot.getFromInventory(slot), target);
-                            Debug.logMessage("Equipped via swap");
+                            Debug.logMessage("通过交换装备");
                         } else {
-                            Debug.logWarning("Failed to equip item " + toEquip.getTranslationKey());
+                            Debug.logWarning("无法装备物品 " + toEquip.getTranslationKey());
                         }
                     }
                      */
@@ -263,7 +279,7 @@ public class Playground {
                     }
                     fw.flush();
                     fw.close();
-                    Debug.logMessage(unobtainable + " / " + total + " unobtainable items. Wrote a list of items to \"" + f.getAbsolutePath() + "\".");
+                    Debug.logMessage(unobtainable + " / " + total + " 个不可获得的物品。已将物品列表写入 \"" + f.getAbsolutePath() + "\"。");
                 } catch (IOException e) {
                     Debug.logWarning(e.toString());
                 }
@@ -306,7 +322,7 @@ public class Playground {
                 List<GhastEntity> ghasts = mod.getEntityTracker().getTrackedEntities(GhastEntity.class);
 
                 if (ghasts.size() == 0) {
-                    Debug.logWarning("No ghasts found.");
+                    Debug.logWarning("未找到恶魂。");
                     break;
                 }
 
@@ -314,11 +330,15 @@ public class Playground {
                 mod.runUserTask(new ShootArrowSimpleProjectileTask(ghast));
                 break;
             default:
-                mod.logWarning("Test not found: \"" + arg + "\".");
+                mod.logWarning("未找到测试: \"" + arg + "\"。");
                 break;
         }
     }
 
+    /**
+     * 睡眠指定秒数
+     * @param seconds 秒数
+     */
     private static void sleepSec(double seconds) {
         try {
             Thread.sleep((int) (1000 * seconds));
