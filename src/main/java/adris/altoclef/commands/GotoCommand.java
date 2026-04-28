@@ -12,8 +12,9 @@ import adris.altoclef.tasksystem.Task;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Out of all the commands, this one probably demonstrates
- * why we need a better arg parsing system. Please.
+ * 前往命令 - 告诉机器人前往一组坐标
+ * 
+ * 在所有命令中，这个命令最能说明为什么我们需要一个更好的参数解析系统。
  */
 public class GotoCommand extends Command {
 
@@ -23,11 +24,16 @@ public class GotoCommand extends Command {
         // x y z dimension
         // (dimension)
         // (x z dimension)
-        super("goto", "Tell bot to travel to a set of coordinates",
+        super("goto", "告诉机器人前往一组坐标",
                 new GoToTargetArg("[x y z dimension]/[x z dimension]/[y dimension]/[dimension]/[x y z]/[x z]/[y]")
         );
     }
 
+    /**
+     * 获取移动任务
+     * @param target 目标坐标
+     * @return 相应的移动任务
+     */
     public static Task getMovementTaskFor(GotoTarget target) {
         return switch (target.getType()) {
             case XYZ -> new GetToBlockTask(new BlockPos(target.getX(), target.getY(), target.getZ()), target.getDimension());

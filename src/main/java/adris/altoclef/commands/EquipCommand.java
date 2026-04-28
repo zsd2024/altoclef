@@ -17,11 +17,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
+/**
+ * 装备命令 - 装备物品
+ */
 public class EquipCommand extends Command {
 
     public EquipCommand() {
-        super("equip", "Equips items",
-                new ListArg<>(new EquipmentItemArg("equipment"), "[equippable_items]")
+        super("equip", "装备物品",
+                new ListArg<>(new EquipmentItemArg("equipment"), "[可装备物品]")
                         .addAlias("leather", Arrays.stream(ItemHelper.LEATHER_ARMORS).map(Item::toString).toList())
                         .addAlias("iron",Arrays.stream(ItemHelper.GOLDEN_ARMORS).map(Item::toString).toList())
                         .addAlias("gold", Arrays.stream(ItemHelper.IRON_ARMORS).map(Item::toString).toList())
@@ -34,19 +37,21 @@ public class EquipCommand extends Command {
     protected void call(AltoClef mod, ArgParser parser) throws CommandException {
         List<ItemTarget> items = parser.get(List.class);
 
+        // 检查物品是否可以装备
         for (ItemTarget target : items) {
             for (Item item : target.getMatches()) {
                 if (!(item instanceof Equipment)) {
-                    throw new RuntimeCommandException("'"+item.toString().toUpperCase() + "' cannot be equipped!");
+                    throw new RuntimeCommandException("'" + item.toString().toUpperCase() + "' 无法装备!");
                 }
             }
         }
 
+        // 执行装备任务
         mod.runUserTask(new EquipArmorTask(items.toArray(new ItemTarget[0])), this::finish);
     }
 
 
-    // this is kinda meh way to do it
+    // 这是一种比较简单的实现方式
     private static class EquipmentItemArg extends CataloguedItemArg {
 
         public EquipmentItemArg(String name) {
@@ -65,14 +70,14 @@ public class EquipCommand extends Command {
             if (result == ParseResult.NOT_FINISHED) {
                 String first = reader.peek();
                 if (getSuggestions(null).noneMatch(s -> s.startsWith(first))) {
-                    throw new BadCommandSyntaxException("Not equipment named '"+first+"' exists");
+                    throw new BadCommandSyntaxException("不存在名为 '" + first + "' 的装备");
                 }
             }
 
             String parsed = parentParser.parse(reader);
 
             if (!isEquipment(parsed)) {
-                throw new BadCommandSyntaxException("Item '"+parsed+"' is not an equipment");
+                throw new BadCommandSyntaxException("物品 '" + parsed + "' 不是装备");
             }
 
             return parsed;

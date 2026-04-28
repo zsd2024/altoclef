@@ -16,20 +16,29 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.List;
 
+/**
+ * 存储命令 - 将物品存入容器中
+ */
 public class DepositCommand extends Command {
     public DepositCommand() {
-        super("deposit", "Deposit ALL of our items",
-                new ListArg<>(new ItemTargetArg("itemStack"), "Item list", null, false)
+        // deposit命令，用于存储我们的物品
+        super("deposit", "存储我们所有的物品",
+                new ListArg<>(new ItemTargetArg("itemStack"), "物品列表", null, false)
         );
     }
 
+    /**
+     * 获取所有非装备或工具类物品作为目标
+     * @param mod AltoClef模块
+     * @return ItemTarget数组
+     */
     public static ItemTarget[] getAllNonEquippedOrToolItemsAsTarget(AltoClef mod) {
         return StorageHelper.getAllInventoryItemsAsTargets(slot -> {
-            // Ignore armor
+            // 忽略护甲
             if (ArrayUtils.contains(PlayerSlot.ARMOR_SLOTS, slot))
                 return false;
             ItemStack stack = StorageHelper.getItemStackInSlot(slot);
-            // Ignore tools
+            // 忽略工具
             if (!stack.isEmpty()) {
                 Item item = stack.getItem();
                 return !(item instanceof ToolItem);
@@ -44,11 +53,13 @@ public class DepositCommand extends Command {
 
         ItemTarget[] items;
         if (itemList == null) {
+            // 如果没有指定物品列表，则获取所有非装备或工具类物品
             items = getAllNonEquippedOrToolItemsAsTarget(mod);
         } else {
             items = itemList.toArray(ItemTarget[]::new);
         }
 
+        // 执行存储任务
         mod.runUserTask(new StoreInAnyContainerTask(false, items), this::finish);
     }
 }

@@ -13,9 +13,12 @@ import net.minecraft.item.ItemStack;
 
 import java.util.HashMap;
 
+/**
+ * 库存命令 - 打印机器人库存或返回机器人拥有某物品的数量
+ */
 public class InventoryCommand extends Command {
     public InventoryCommand() {
-        super("inventory", "Prints the bot's inventory OR returns how many of an item the bot has",
+        super("inventory", "打印机器人的库存或返回机器人拥有某物品的数量",
                 new CataloguedItemArg("item", null, false)
         );
     }
@@ -24,8 +27,8 @@ public class InventoryCommand extends Command {
     protected void call(AltoClef mod, ArgParser parser) throws CommandException {
         String item = parser.get(String.class);
         if (item == null) {
-            // Print inventory
-            // Get item counts
+            // 打印库存
+            // 获取物品数量
             HashMap<String, Integer> counts = new HashMap<>();
             for (int i = 0; i < mod.getPlayer().getInventory().size(); ++i) {
                 ItemStack stack = mod.getPlayer().getInventory().getStack(i);
@@ -35,25 +38,25 @@ public class InventoryCommand extends Command {
                     counts.put(name, counts.get(name) + stack.getCount());
                 }
             }
-            // Print
-            mod.log("INVENTORY: ", MessagePriority.OPTIONAL);
+            // 打印
+            mod.log("库存: ", MessagePriority.OPTIONAL);
             for (String name : counts.keySet()) {
                 mod.log(name + " : " + counts.get(name), MessagePriority.OPTIONAL);
             }
-            mod.log("(inventory list sent) ", MessagePriority.OPTIONAL);
+            mod.log("(库存列表已发送) ", MessagePriority.OPTIONAL);
         } else {
-            // Print item quantity
+            // 打印物品数量
             Item[] matches = TaskCatalogue.getItemMatches(item);
             if (matches == null || matches.length == 0) {
-                mod.logWarning("Item \"" + item + "\" is not catalogued/recognized.");
+                mod.logWarning("物品 \"" + item + "\" 未被记录/未被识别。");
                 finish();
                 return;
             }
             int count = mod.getItemStorage().getItemCount(matches);
             if (count == 0) {
-                mod.log(item + " COUNT: (none)");
+                mod.log(item + " 数量: (无)");
             } else {
-                mod.log(item + " COUNT: " + count);
+                mod.log(item + " 数量: " + count);
             }
         }
         finish();

@@ -14,10 +14,13 @@ import net.minecraft.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 给予命令 - 收集物品并给予你或其他人
+ */
 public class GiveCommand extends Command {
 
     public GiveCommand() {
-        super("give", "Collect an item and give it to you or someone else",
+        super("give", "收集物品并给予你或其他人",
                 new StringArg("username"),
                 new ListArg<>(new ItemTargetArg("items"), "items"),
                 new GoToTargetArg("cordinates", null, false)
@@ -26,28 +29,28 @@ public class GiveCommand extends Command {
 
     @Override
     protected void call(AltoClef mod, ArgParser parser) throws CommandException {
-        mod.logWarning("This command is deprecated!");
-        // Parse target username or fall back to current butler user
+        mod.logWarning("此命令已弃用!");
+        // 解析目标用户名或回退到当前butler用户
         String username = parser.get(String.class);
-        // FIXME argument defaults are not setup in a way this can work
+        // FIXME 参数默认值未设置为可以工作的方式
         if (username == null) {
             if (mod.getButler().hasCurrentUser()) {
                 username = mod.getButler().getCurrentUser();
             } else {
-                mod.logWarning("No butler user currently present. Running this command with no user argument can ONLY be done via butler.");
+                mod.logWarning("当前没有butler用户。在没有用户参数的情况下运行此命令只能通过butler执行。");
                 finish();
                 return;
             }
         }
-        // Parse list of requested items
+        // 解析请求的物品列表
         List<ItemTarget> requested = parser.get(List.class);
         if (requested == null || requested.isEmpty()) {
-            mod.logWarning("No items specified to give.");
+            mod.logWarning("未指定要给予的物品。");
             finish();
             return;
         }
 
-        // For each requested item, check if a matching item in inventory needs registration
+        // 对于每个请求的物品，检查库存中是否有匹配的物品需要注册
         List<ItemTarget> resolved = new ArrayList<>();
         for (ItemTarget req : requested) {
             ItemTarget best = req;
@@ -65,13 +68,13 @@ public class GiveCommand extends Command {
         }
         GotoTarget cordinates = parser.get(GotoTarget.class);
 
-        // Submit a give task for each resolved item
+        // 为每个解析的物品提交一个给予任务
         for (ItemTarget target : resolved) {
             if (cordinates == null) {
-                mod.log(String.format("USER: %s : ITEM: %s x %d.", username, target.getCatalogueName(), target.getTargetCount()));
+                mod.log(String.format("用户: %s : 物品: %s x %d.", username, target.getCatalogueName(), target.getTargetCount()));
                 mod.runUserTask(new GiveItemToPlayerTask(username, target), this::finish);
             } else {
-                mod.log(String.format("USER: %s : ITEM: %s x %d. Final Location: %d, %d, %d", username, target.getCatalogueName(), target.getTargetCount(), cordinates.getX(), cordinates.getY(), cordinates.getZ()));
+                mod.log(String.format("用户: %s : 物品: %s x %d. 最终位置: %d, %d, %d", username, target.getCatalogueName(), target.getTargetCount(), cordinates.getX(), cordinates.getY(), cordinates.getZ()));
                 mod.runUserTask(new GiveItemToPlayerTask(username, cordinates, target), this::finish);
             }
         }
