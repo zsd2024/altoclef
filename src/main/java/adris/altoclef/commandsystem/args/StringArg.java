@@ -5,16 +5,38 @@ import adris.altoclef.commandsystem.exception.CommandNotFinishedException;
 
 import java.util.stream.Stream;
 
+/**
+ * 字符串参数类，用于解析命令中的字符串类型参数
+ * 字符串不能为空，否则会抛出 CommandNotFinishedException 异常
+ */
 public class StringArg extends Arg<String> {
 
+    /**
+     * 构造函数，创建一个没有默认值的字符串参数
+     *
+     * @param name 参数名称
+     */
     public StringArg(String name) {
         super(name);
     }
 
+    /**
+     * 构造函数，创建一个带有默认值的字符串参数
+     *
+     * @param name 参数名称
+     * @param defaultValue 默认值
+     */
     public StringArg(String name, String defaultValue) {
         super(name, defaultValue);
     }
 
+    /**
+     * 构造函数，创建一个带有默认值并指定是否显示默认值的字符串参数
+     *
+     * @param name 参数名称
+     * @param defaultValue 默认值
+     * @param showDefault 是否在帮助信息中显示默认值
+     */
     public StringArg(String name, String defaultValue, boolean showDefault) {
         super(name, defaultValue, showDefault);
     }
@@ -29,7 +51,7 @@ public class StringArg extends Arg<String> {
     protected StringParser<String> getParser() {
         return reader -> {
             String value = reader.next();
-            if (value.isEmpty()) throw new CommandNotFinishedException("String cannot be empty");
+            if (value.isEmpty()) throw new CommandNotFinishedException("字符串不能为空");
 
             return value;
         };
@@ -37,7 +59,7 @@ public class StringArg extends Arg<String> {
 
     @Override
     public String getTypeName() {
-        return "String";
+        return "字符串";
     }
 
     @Override

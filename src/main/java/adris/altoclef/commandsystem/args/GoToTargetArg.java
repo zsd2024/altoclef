@@ -16,16 +16,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
+/**
+ * 目标位置参数类
+ * 用于解析和处理命令中的目标位置参数，支持坐标和维度信息
+ */
 public class GoToTargetArg extends Arg<GotoTarget> {
 
+    /**
+     * 构造函数
+     * @param name 参数名称
+     */
     public GoToTargetArg(String name) {
         super(name);
     }
 
+    /**
+     * 构造函数
+     * @param name 参数名称
+     * @param defaultValue 默认值
+     * @param showDefault 是否显示默认值
+     */
     public GoToTargetArg(String name, GotoTarget defaultValue, boolean showDefault) {
         super(name, defaultValue, showDefault);
     }
 
+    /**
+     * 解析目标位置参数
+     * @param reader 字符串读取器
+     * @return 解析后的目标位置对象
+     * @throws CommandException 当解析失败时抛出命令异常
+     */
     public static GotoTarget parse(StringReader reader) throws CommandException {
         List<Integer> numbers = new ArrayList<>();
 
@@ -37,7 +57,7 @@ public class GoToTargetArg extends Arg<GotoTarget> {
         Dimension dimension = Arg.parseIfSupplied(reader, r -> EnumArg.parse(r, Dimension.class));
 
         if (numbers.isEmpty() && dimension == null) {
-            throw new CommandNotFinishedException("Expected coordinates and/or dimension");
+            throw new CommandNotFinishedException("需要提供坐标和/或维度信息");
         }
 
         int x = 0;
@@ -63,12 +83,18 @@ public class GoToTargetArg extends Arg<GotoTarget> {
                 coordType = GotoTarget.GotoTargetCoordType.XYZ;
             }
             default -> {
-                throw new BadCommandSyntaxException("Unexpected number of integers passed to coordinate: " + numbers.size());
+                throw new BadCommandSyntaxException("传递给坐标的整数数量意外: " + numbers.size());
             }
         }
         return new GotoTarget(x, y, z, dimension, coordType);
     }
 
+    /**
+     * 获取坐标建议
+     * @param client Minecraft客户端实例
+     * @param numbers 已解析的数字列表
+     * @return 坐标建议列表
+     */
     private static List<String> getCoordsSuggestion(MinecraftClient client, List<Integer> numbers) {
         HitResult hit = client.crosshairTarget;
 
@@ -79,7 +105,7 @@ public class GoToTargetArg extends Arg<GotoTarget> {
             pos = client.player.getBlockPos();
         }
 
-        // pick which axis to suggest next
+        // 选择下一个要建议的轴
         if (numbers.isEmpty()) {
             return List.of(
                     pos.getX() + " " + pos.getY() + " " + pos.getZ(),
