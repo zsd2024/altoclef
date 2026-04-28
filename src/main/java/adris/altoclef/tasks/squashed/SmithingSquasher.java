@@ -16,11 +16,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * 锻造合并器
+ * 用于合并多个锻造升级任务，优化材料收集和锻造流程
+ */
 public class SmithingSquasher extends TypeSquasher<UpgradeInSmithingTableTask> {
 
     @Override
     protected List<ResourceTask> getSquashed(List<UpgradeInSmithingTableTask> tasks) {
-        // Group materials + tools together, then return a list of the same UpgradeInSmithing tasks
+        // 将材料和工具分组，然后返回相同的UpgradeInSmithing任务列表
         List<ResourceTask> result = new ArrayList<>();
         List<ItemTarget> units = new ArrayList<>();
         for (UpgradeInSmithingTableTask task : tasks) {
@@ -28,11 +32,15 @@ public class SmithingSquasher extends TypeSquasher<UpgradeInSmithingTableTask> {
             units.add(task.getTools());
         }
         result.add(new GetMaterialsTask(units.toArray(ItemTarget[]::new)));
-        // Afterwards, perform the smithing.
+        // 然后执行锻造操作
         result.addAll(tasks);
         return result;
     }
 
+    /**
+     * 获取材料任务内部类
+     * 负责收集锻造所需的材料和工具
+     */
     private static class GetMaterialsTask extends ResourceTask {
 
         public GetMaterialsTask(ItemTarget[] targets) {
@@ -49,6 +57,14 @@ public class SmithingSquasher extends TypeSquasher<UpgradeInSmithingTableTask> {
 
         }
 
+        /**
+         * 获取指定槽位中匹配目标的物品数量
+         * 
+         * @param mod AltoClef实例
+         * @param slot 槽位
+         * @param match 匹配目标
+         * @return 物品数量
+         */
         private int getItemsInSlot(AltoClef mod, Slot slot, ItemTarget match) {
             ItemStack stack = StorageHelper.getItemStackInSlot(slot);
             if (!stack.isEmpty() && match.matches(stack.getItem())) {
@@ -61,7 +77,7 @@ public class SmithingSquasher extends TypeSquasher<UpgradeInSmithingTableTask> {
         protected Task onResourceTick(AltoClef mod) {
             List<ItemTarget> resultingTargets = Arrays.asList(itemTargets);
 
-            // Subtract required counts if we're in a smithing table, so putting items in the table doesn't remove them.
+            // 如果在锻造台界面中，减去所需数量，这样放入锻造台的物品不会被移除
             boolean inSmithingTable = (mod.getPlayer().currentScreenHandler instanceof SmithingScreenHandler);
             if (inSmithingTable) {
                 for (int i = 0; i < resultingTargets.size(); ++i) {
@@ -82,12 +98,12 @@ public class SmithingSquasher extends TypeSquasher<UpgradeInSmithingTableTask> {
 
         @Override
         protected boolean isEqualResource(ResourceTask other) {
-            return true; // item targets are the only difference
+            return true; // 只有物品目标不同
         }
 
         @Override
         protected String toDebugStringName() {
-            return "Collecting Smithing Materials";
+            return "收集锻造材料";
         }
     }
 }

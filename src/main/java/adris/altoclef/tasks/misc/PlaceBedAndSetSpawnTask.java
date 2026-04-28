@@ -37,10 +37,23 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 import org.apache.commons.lang3.ArrayUtils;
 
+/**
+ * 放置床并设置重生点任务
+ * 此任务负责在主世界中放置床并设置重生点，或使用已存在的床
+ */
 public class PlaceBedAndSetSpawnTask extends Task {
 
+    /**
+     * 区域扫描计时器（9秒）
+     */
     private final TimerGame regionScanTimer = new TimerGame(9);
+    /**
+     * 床需要清理的区域大小（3x2x3）
+     */
     private final Vec3i BED_CLEAR_SIZE = new Vec3i(3, 2, 3);
+    /**
+     * 床底部平台的位置偏移
+     */
     private final Vec3i[] BED_BOTTOM_PLATFORM = new Vec3i[]{
             new Vec3i(0, -1, 0),
             new Vec3i(1, -1, 0),
@@ -52,9 +65,18 @@ public class PlaceBedAndSetSpawnTask extends Task {
             new Vec3i(1, -1, 1),
             new Vec3i(2, -1, 1)
     };
-    // Kinda silly but who knows if we ever want to change it.
+    // 有点傻，但谁知道我们是否想改变它。
+    /**
+     * 放置床时玩家站立的位置偏移
+     */
     private final Vec3i BED_PLACE_STAND_POS = new Vec3i(0, 0, 1);
+    /**
+     * 放置床的位置偏移
+     */
     private final Vec3i BED_PLACE_POS = new Vec3i(1, 0, 1);
+    /**
+     * 床放置位置的偏移数组，用于检测已放置的床
+     */
     private final Vec3i[] BED_PLACE_POS_OFFSET = new Vec3i[]{
             BED_PLACE_POS,
             BED_PLACE_POS.north(),
@@ -78,59 +100,105 @@ public class PlaceBedAndSetSpawnTask extends Task {
             BED_PLACE_POS.add(2,0,-1),
             BED_PLACE_POS.add(2,0,-2)
     };
+    /**
+     * 放置床的方向（向上）
+     */
     private final Direction BED_PLACE_DIRECTION = Direction.UP;
+    /**
+     * 床交互超时计时器（5秒）
+     */
     private final TimerGame bedInteractTimeout = new TimerGame(5);
+    /**
+     * 在床中计时器（1秒）
+     */
     private final TimerGame inBedTimer = new TimerGame(1);
+    /**
+     * 移动进度检查器
+     */
     private final MovementProgressChecker progressChecker = new MovementProgressChecker();
+    /**
+     * 是否留在床中
+     */
     private boolean stayInBed;
+    /**
+     * 当前床区域位置
+     */
     private BlockPos currentBedRegion;
-    private BlockPos currentStructure, currentBreak;
+    /**
+     * 当前需要放置结构的位置
+     */
+    private BlockPos currentStructure;
+    /**
+     * 当前需要破坏的位置
+     */
+    private BlockPos currentBreak;
+    /**
+     * 重生点是否已设置
+     */
     private boolean spawnSet;
+    /**
+     * 重生点设置消息检查订阅
+     */
     private Subscription<ChatMessageEvent> respawnPointSetMessageCheck;
+    /**
+     * 重生失败消息检查订阅
+     */
     private Subscription<GameOverlayEvent> respawnFailureMessageCheck;
+    /**
+     * 是否已尝试睡觉
+     */
     private boolean sleepAttemptMade;
+    /**
+     * 之前是否在睡觉
+     */
     private boolean wasSleeping;
+    /**
+     * 用于设置重生点的床位置
+     */
     private BlockPos bedForSpawnPoint;
 
+    /**
+     * 构造函数
+     */
     public PlaceBedAndSetSpawnTask() {
 
     }
 
     /**
-     * Sets the flag to stay in bed.
+     * 设置留在床中的标志
      *
-     * @return The current instance of PlaceBedAndSetSpawnTask.
+     * @return 当前PlaceBedAndSetSpawnTask实例
      */
     public PlaceBedAndSetSpawnTask stayInBed() {
-        // Log method call
+        // 记录方法调用
         Debug.logInternal("Stay in bed method called");
 
-        // Set _stayInBed flag to true
+        // 将_stayInBed标志设置为true
         this.stayInBed = true;
         Debug.logInternal("Setting _stayInBed to true");
 
-        // Return current instance
+        // 返回当前实例
         return this;
     }
 
     /**
-     * This method is called when the mod starts.
-     * It initializes various variables and sets up behaviours for the mod.
+     * 任务开始时调用的方法
+     * 初始化各种变量并设置模组行为
      */
     @Override
     protected void onStart() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Push the current behaviour
+        // 保存当前行为设置
         mod.getBehaviour().push();
 
-        // Reset progress checker
+        // 重置进度检查器
         progressChecker.reset();
 
-        // Reset current bed region
+        // 重置当前床区域
         currentBedRegion = null;
 
-        // Avoid placing blocks near bed
+        // 避免在床附近放置方块
         mod.getBehaviour().avoidBlockPlacing(pos -> {
             if (currentBedRegion != null) {
                 BlockPos start = currentBedRegion;
@@ -142,7 +210,7 @@ public class PlaceBedAndSetSpawnTask extends Task {
             return false;
         });
 
-        // Avoid breaking blocks near bed
+        // 避免在床附近破坏方块
         mod.getBehaviour().avoidBlockBreaking(pos -> {
             if (currentBedRegion != null) {
                 for (Vec3i baseOffs : BED_BOTTOM_PLATFORM) {
@@ -150,19 +218,19 @@ public class PlaceBedAndSetSpawnTask extends Task {
                     if (base.equals(pos)) return true;
                 }
             }
-            // Don't ever break beds. If one exists, we will sleep in it.
+            // 永远不要破坏床。如果存在床，我们会睡在上面。
             if (mod.getWorld() != null) {
                 return mod.getWorld().getBlockState(pos).getBlock() instanceof BedBlock;
             }
             return false;
         });
 
-        // Reset variables for sleep handling
+        // 重置睡眠处理变量
         spawnSet = false;
         sleepAttemptMade = false;
         wasSleeping = false;
 
-        // Subscribe to respawn point set message event
+        // 订阅重生点设置消息事件
         respawnPointSetMessageCheck = EventBus.subscribe(ChatMessageEvent.class, evt -> {
             String msg = evt.toString();
             if (msg.contains("Respawn point set")) {
@@ -171,7 +239,7 @@ public class PlaceBedAndSetSpawnTask extends Task {
             }
         });
 
-        // Subscribe to respawn failure message event
+        // 订阅重生失败消息事件
         respawnFailureMessageCheck = EventBus.subscribe(GameOverlayEvent.class, evt -> {
             final String[] NEUTRAL_MESSAGES = new String[]{
                     "You can sleep only at night",
@@ -188,12 +256,15 @@ public class PlaceBedAndSetSpawnTask extends Task {
             }
         });
 
-        // Logging statements for debugging
+        // 调试日志
         Debug.logInternal("Started onStart() method");
         Debug.logInternal("Current bed region: " + currentBedRegion);
         Debug.logInternal("Spawn set: " + spawnSet);
     }
 
+    /**
+     * 重置睡眠状态
+     */
     public void resetSleep() {
         spawnSet = false;
         sleepAttemptMade = false;
@@ -202,34 +273,34 @@ public class PlaceBedAndSetSpawnTask extends Task {
 
     @Override
     protected Task onTick() {
-        // Summary:
-        // If we find a bed nearby, sleep in it.
-        // Otherwise, place bed:
-        //      Collect bed if we don't have one.
-        //      Find a 3x2x1 region and clear it
-        //      Stand on the edge of the long (3) side
-        //      Place on the middle block, reliably placing the bed.
+        // 概要：
+        // 如果我们在附近找到一张床，就睡在上面。
+        // 否则，放置床：
+        //      如果没有床，先收集一张床。
+        //      找到一个3x2x1的区域并清理它
+        //      站在长边（3）的边缘
+        //      放置在中间方块上，可靠地放置床。
         AltoClef mod = AltoClef.getInstance();
 
         if (!progressChecker.check(mod) && currentBedRegion != null) {
             progressChecker.reset();
-            Debug.logMessage("Searching new bed region.");
+            Debug.logMessage("正在搜索新的床区域。");
             currentBedRegion = null;
         }
         if (WorldHelper.isInNetherPortal()) {
-            setDebugState("We are in nether portal. Wandering");
+            setDebugState("我们在下界传送门中。随机游荡");
             currentBedRegion = null;
             return new TimeoutWanderTask();
         }
-        // We cannot do this anywhere but the overworld.
+        // 我们只能在主世界执行此操作。
         if (WorldHelper.getCurrentDimension() != Dimension.OVERWORLD) {
-            setDebugState("Going to the overworld first.");
+            setDebugState("先去主世界。");
             return new DefaultGoToDimensionTask(Dimension.OVERWORLD);
         }
         Screen screen = MinecraftClient.getInstance().currentScreen;
         if (screen instanceof SleepingChatScreen) {
             progressChecker.reset();
-            setDebugState("Sleeping...");
+            setDebugState("睡觉中...");
             wasSleeping = true;
             //Debug.logMessage("Closing sleeping thing");
             spawnSet = true;
@@ -238,7 +309,7 @@ public class PlaceBedAndSetSpawnTask extends Task {
 
         if (sleepAttemptMade) {
             if (bedInteractTimeout.elapsed()) {
-                Debug.logMessage("Failed to get \"Respawn point set\" message or sleeping, assuming that this bed already contains our spawn.");
+                Debug.logMessage("未能获取\"重生点已设置\"消息或进入睡眠状态，假设此床已包含我们的重生点。");
                 spawnSet = true;
                 return null;
             }
@@ -247,21 +318,21 @@ public class PlaceBedAndSetSpawnTask extends Task {
                 blockPos.isWithinDistance(mod.getPlayer().getPos(), 40) &&
                 mod.getItemStorage().hasItem(ItemHelper.BED)) || (WorldHelper.canReach(blockPos) &&
                 !mod.getItemStorage().hasItem(ItemHelper.BED)), ItemHelper.itemsToBlocks(ItemHelper.BED))) {
-            // Sleep in the nearest bed
-            setDebugState("Going to bed to sleep...");
+            // 睡在最近的床上
+            setDebugState("去床上睡觉...");
             return new DoToClosestBlockTask(toSleepIn -> {
                 boolean closeEnough = toSleepIn.isWithinDistance(mod.getPlayer().getPos(), 3);
                 if (closeEnough) {
-                    // why 0.2? I'm tired.
+                    // 为什么是0.2？我累了。
                     Vec3d centerBed = new Vec3d(toSleepIn.getX() + 0.5, toSleepIn.getY() + 0.2, toSleepIn.getZ() + 0.5);
                     BlockHitResult hit = LookHelper.raycast(mod.getPlayer(), centerBed, 6);
-                    // TODO: Kinda ugly, but I'm tired and fixing for the 2nd attempt speedrun so I will fix this block later
+                    // TODO: 有点丑，但我累了，为了第二次尝试速通，稍后再修复这个代码块
                     closeEnough = false;
                     if (hit.getType() != HitResult.Type.MISS) {
-                        // At this poinAt, if we miss, we probably are close enough.
+                        // 在这一点上，如果我们错过了，我们可能已经足够接近了。
                         BlockPos p = hit.getBlockPos();
                         if (ArrayUtils.contains(ItemHelper.itemsToBlocks(ItemHelper.BED), mod.getWorld().getBlockState(p).getBlock())) {
-                            // We have a bed!
+                            // 我们有一张床！
                             closeEnough = true;
                         }
                     }
@@ -275,11 +346,11 @@ public class PlaceBedAndSetSpawnTask extends Task {
                         Direction face = mod.getWorld().getBlockState(toSleepIn).get(BedBlock.FACING);
                         Direction side = face.rotateYClockwise();
                         /*
-                        BlockPos targetMove = toSleepIn.offset(side).offset(side); // Twice, juust to make sure...
+                        BlockPos targetMove = toSleepIn.offset(side).offset(side); // 两次，只是为了确保...
                          */
                         return new GetToBlockTask(bedForSpawnPoint.add(side.getVector()));
                     } catch (IllegalArgumentException e) {
-                        // If bed is not loaded, this will happen. In that case just get to the bed first.
+                        // 如果床未加载，就会发生这种情况。在这种情况下，先到达床的位置。
                     }
                 } else {
                     inBedTimer.reset();
@@ -287,14 +358,14 @@ public class PlaceBedAndSetSpawnTask extends Task {
                 if (closeEnough) {
                     inBedTimer.reset();
                 }
-                // Keep track of where our spawn point is
+                // 跟踪我们的重生点位置
                 progressChecker.reset();
                 return new InteractWithBlockTask(bedForSpawnPoint);
             }, ItemHelper.itemsToBlocks(ItemHelper.BED));
         }
 
         if (mod.getPlayer().isTouchingWater() && mod.getItemStorage().hasItem(ItemHelper.BED)) {
-            setDebugState("We are in water. Wandering");
+            setDebugState("我们在水中。随机游荡");
             currentBedRegion = null;
             return new TimeoutWanderTask();
         }
@@ -308,25 +379,25 @@ public class PlaceBedAndSetSpawnTask extends Task {
                 }
             }
         }
-        // Get a bed if we don't have one.
+        // 如果没有床，先获取一张。
         if (!mod.getItemStorage().hasItem(ItemHelper.BED)) {
-            setDebugState("Getting a bed first");
+            setDebugState("先获取一张床");
             return TaskCatalogue.getItemTask("bed", 1);
         }
 
         if (currentBedRegion == null) {
             if (regionScanTimer.elapsed()) {
-                Debug.logMessage("Rescanning for nearby bed place position...");
+                Debug.logMessage("重新扫描附近的床放置位置...");
                 regionScanTimer.reset();
                 currentBedRegion = this.locateBedRegion(mod, mod.getPlayer().getBlockPos());
             }
         }
         if (currentBedRegion == null) {
-            setDebugState("Searching for spot to place bed, wandering...");
+            setDebugState("寻找放置床的位置，随机游荡...");
             return new TimeoutWanderTask();
         }
 
-        // Clear and make bed foundation
+        // 清理并制作床的基础
 
         for (Vec3i baseOffs : BED_BOTTOM_PLATFORM) {
             BlockPos toPlace = currentBedRegion.add(baseOffs);
@@ -353,7 +424,7 @@ public class PlaceBedAndSetSpawnTask extends Task {
             if (WorldHelper.isSolidBlock(currentStructure)) {
                 currentStructure = null;
             } else {
-                setDebugState("Placing structure for bed");
+                setDebugState("放置床的结构");
                 return new PlaceStructureBlockTask(currentStructure);
             }
         }
@@ -361,26 +432,26 @@ public class PlaceBedAndSetSpawnTask extends Task {
             if (!WorldHelper.isSolidBlock(currentBreak)) {
                 currentBreak = null;
             } else {
-                setDebugState("Clearing region for bed");
+                setDebugState("清理床的区域");
                 return new DestroyBlockTask(currentBreak);
             }
         }
 
         BlockPos toStand = currentBedRegion.add(BED_PLACE_STAND_POS);
-        // Our bed region is READY TO BE PLACED
+        // 我们的床区域已准备好放置
         if (!mod.getPlayer().getBlockPos().equals(toStand)) {
             return new GetToBlockTask(toStand);
         }
 
         BlockPos toPlace = currentBedRegion.add(BED_PLACE_POS);
         if (mod.getWorld().getBlockState(toPlace.offset(BED_PLACE_DIRECTION)).getBlock() instanceof BedBlock) {
-            setDebugState("Waiting to rescan + find bed that we just placed. Should be almost instant.");
+            setDebugState("等待重新扫描+找到我们刚刚放置的床。应该几乎是瞬间完成的。");
             progressChecker.reset();
             return null;
         }
-        setDebugState("Placing bed...");
+        setDebugState("放置床...");
 
-        setDebugState("Filling in Portal");
+        setDebugState("填充传送门");
         if (!progressChecker.check(mod)) {
             mod.getClientBaritone().getPathingBehavior().cancelEverything();
             mod.getClientBaritone().getPathingBehavior().forceCancel();
@@ -389,7 +460,7 @@ public class PlaceBedAndSetSpawnTask extends Task {
             progressChecker.reset();
         }
 
-        // Scoot backwards if we're trying to place and fail
+        // 如果我们尝试放置但失败了，向后移动
         if (thisOrChildSatisfies(task -> {
             if (task instanceof InteractWithBlockTask intr)
                 return intr.getClickStatus() == InteractWithBlockTask.ClickResponse.CLICK_ATTEMPTED;
@@ -401,81 +472,81 @@ public class PlaceBedAndSetSpawnTask extends Task {
     }
 
     /**
-     * Override method called when the task is interrupted.
+     * 任务被中断时调用的覆盖方法
      *
-     * @param interruptTask The task that interrupted this task.
+     * @param interruptTask 中断此任务的任务
      */
     @Override
     protected void onStop(Task interruptTask) {
-        // Pop the behaviour stack
+        // 恢复行为堆栈
         AltoClef.getInstance().getBehaviour().pop();
 
-        // Unsubscribe from respawn point set message
+        // 取消订阅重生点设置消息
         EventBus.unsubscribe(respawnPointSetMessageCheck);
 
-        // Unsubscribe from respawn failure message
+        // 取消订阅重生失败消息
         EventBus.unsubscribe(respawnFailureMessageCheck);
 
-        // Logging statements for debugging
-        Debug.logInternal("Tracking stopped for beds");
-        Debug.logInternal("Behaviour popped");
-        Debug.logInternal("Unsubscribed from respawn point set message");
-        Debug.logInternal("Unsubscribed from respawn failure message");
+        // 调试日志
+        Debug.logInternal("停止跟踪床");
+        Debug.logInternal("行为已恢复");
+        Debug.logInternal("已取消订阅重生点设置消息");
+        Debug.logInternal("已取消订阅重生失败消息");
     }
 
     /**
-     * Checks if the given task is equal to this task.
+     * 检查给定任务是否与此任务相等
      *
-     * @param other The task to compare with.
-     * @return True if the tasks are equal, false otherwise.
+     * @param other 要比较的任务
+     * @return 如果任务相等则返回true，否则返回false
      */
     @Override
     protected boolean isEqual(Task other) {
-        // Check if the other task is an instance of PlaceBedAndSetSpawnTask
+        // 检查其他任务是否是PlaceBedAndSetSpawnTask的实例
         boolean isSameTask = (other instanceof PlaceBedAndSetSpawnTask);
 
         if (!isSameTask) {
-            // Log a debug message if the tasks are not of the same type
-            Debug.logInternal("Tasks are not of the same type");
+            // 如果任务类型不同，记录调试消息
+            Debug.logInternal("任务类型不同");
         }
 
         return isSameTask;
     }
 
     /**
-     * Returns a string representation of the action performed by this method.
-     * The action is described as "Placing a bed nearby + resetting spawn point".
+     * 返回此方法执行的操作的字符串表示
+     * 操作描述为"在附近放置床+重置重生点"
      *
-     * @return a string representation of the action
+     * @return 操作的字符串表示
      */
     @Override
     protected String toDebugString() {
-        return "Placing a bed nearby + resetting spawn point";
+        return "在附近放置床+重置重生点";
     }
 
     /**
-     * Checks if the spawnpoint/sleep condition is finished.
+     * 检查重生点/睡眠条件是否已完成
      *
-     * @return Whether the condition is finished.
+     * @return 条件是否已完成
      */
     @Override
     public boolean isFinished() {
-        // Check if we are in the overworld
+        // 检查是否在主世界
         if (WorldHelper.getCurrentDimension() != Dimension.OVERWORLD) {
-            Debug.logInternal("Can't place spawnpoint/sleep in a bed unless we're in the overworld!");
+            Debug.logInternal("除非我们在主世界，否则无法在床中设置重生点/睡觉！");
             return true;
         }
 
-        // Check if player is sleeping
+        // 检查玩家是否在睡觉
         boolean isSleeping = AltoClef.getInstance().getPlayer().isSleeping();
 
-        // Check if timer has elapsed
+        // 检查计时器是否已过期
         boolean timerElapsed = inBedTimer.elapsed();
 
-        // Check if spawnpoint is set, player is not sleeping, and timer has elapsed
+        // 检查重生点是否已设置，玩家是否不在睡觉，且计时器是否已过期
         boolean isFinished = spawnSet && !isSleeping && timerElapsed;
 
-        // Log the values for debugging
+        // 记录调试值
         Debug.logInternal("isSleeping: " + isSleeping);
         Debug.logInternal("timerElapsed: " + timerElapsed);
         Debug.logInternal("isFinished: " + isFinished);
@@ -484,37 +555,37 @@ public class PlaceBedAndSetSpawnTask extends Task {
     }
 
     /**
-     * Returns the position of the bed where the player last slept.
+     * 返回玩家上次睡觉的床的位置
      *
-     * @return The BlockPos of the bed.
+     * @return 床的BlockPos
      */
     public BlockPos getBedSleptPos() {
-        // Log a debug message indicating that the bed slept position is being fetched
-        Debug.logInternal("Fetching bed slept position");
+        // 记录正在获取床的睡觉位置的调试消息
+        Debug.logInternal("获取床的睡觉位置");
 
-        // Return the stored bed position
+        // 返回存储的床位置
         return bedForSpawnPoint;
     }
 
     /**
-     * Checks if the spawn is set.
+     * 检查重生点是否已设置
      *
-     * @return true if the spawn is set, false otherwise.
+     * @return 如果重生点已设置则返回true，否则返回false
      */
     public boolean isSpawnSet() {
-        // Log internal message for debugging
-        Debug.logInternal("Checking if spawn is set");
+        // 记录内部调试消息
+        Debug.logInternal("检查重生点是否已设置");
 
-        // Return the value of the _spawnSet variable
+        // 返回_spawnSet变量的值
         return spawnSet;
     }
 
     /**
-     * Locates the closest good position within a specified range from the given origin.
+     * 在指定范围内从给定原点定位最近的良好位置
      *
-     * @param mod    The mod instance.
-     * @param origin The origin position.
-     * @return The closest good position.
+     * @param mod    模组实例
+     * @param origin 原点位置
+     * @return 最近的良好位置
      */
     private BlockPos locateBedRegion(AltoClef mod, BlockPos origin) {
         final int SCAN_RANGE = 10;
@@ -529,15 +600,15 @@ public class PlaceBedAndSetSpawnTask extends Task {
                     BlockPos attemptPos = new BlockPos(x, y, z);
                     double distance = BlockPosVer.getSquaredDistance(attemptPos,mod.getPlayer().getPos());
 
-                    Debug.logInternal("Checking position: " + attemptPos);
+                    Debug.logInternal("检查位置: " + attemptPos);
 
                     if (distance > closestDist) {
-                        Debug.logInternal("Skipping position: " + attemptPos);
+                        Debug.logInternal("跳过位置: " + attemptPos);
                         continue;
                     }
 
                     if (isGoodPosition(mod, attemptPos)) {
-                        Debug.logInternal("Found good position: " + attemptPos);
+                        Debug.logInternal("找到良好位置: " + attemptPos);
                         closestGood = attemptPos;
                         closestDist = distance;
                     }
@@ -549,42 +620,42 @@ public class PlaceBedAndSetSpawnTask extends Task {
     }
 
     /**
-     * Check if the given position is a good position.
-     * A position is considered good if all blocks within a specific area around it can be placed inside or cleared.
+     * 检查给定位置是否是良好位置
+     * 如果位置周围特定区域内的所有方块都可以放置或清理，则认为该位置是良好的
      *
-     * @param mod The AltoClef mod instance.
-     * @param pos The position to check.
-     * @return True if the position is good, false otherwise.
+     * @param mod 模组实例
+     * @param pos 要检查的位置
+     * @return 如果位置良好则返回true，否则返回false
      */
     private boolean isGoodPosition(AltoClef mod, BlockPos pos) {
         final BlockPos BED_CLEAR_SIZE = new BlockPos(2, 1, 2);
 
-        // Iterate over the area around the position
+        // 遍历位置周围的区域
         for (int x = 0; x < BED_CLEAR_SIZE.getX(); ++x) {
             for (int y = 0; y < BED_CLEAR_SIZE.getY(); ++y) {
                 for (int z = 0; z < BED_CLEAR_SIZE.getZ(); ++z) {
                     BlockPos checkPos = pos.add(x,y,z);
                     if (!isGoodToPlaceInsideOrClear(mod, checkPos)) {
-                        Debug.logInternal("Not a good position: " + checkPos);
+                        Debug.logInternal("不是良好位置: " + checkPos);
                         return false;
                     }
                 }
             }
         }
 
-        Debug.logInternal("Good position");
+        Debug.logInternal("良好位置");
         return true;
     }
 
     /**
-     * Checks if a given position is good to place inside or clear.
+     * 检查给定位置是否适合放置或清理
      *
-     * @param mod The AltoClef instance.
-     * @param pos The position to check.
-     * @return True if the position is good to place inside or clear, false otherwise.
+     * @param mod 模组实例
+     * @param pos 要检查的位置
+     * @return 如果位置适合放置或清理则返回true，否则返回false
      */
     private boolean isGoodToPlaceInsideOrClear(AltoClef mod, BlockPos pos) {
-        // Define the offsets to check around the position
+        // 定义要检查位置周围的偏移量
         final Vec3i[] CHECK = {
                 new Vec3i(0, 0, 0),
                 new Vec3i(-1, 0, 0),
@@ -595,38 +666,38 @@ public class PlaceBedAndSetSpawnTask extends Task {
                 new Vec3i(0, 0, -1)
         };
 
-        // Check each offset
+        // 检查每个偏移量
         for (Vec3i offset : CHECK) {
             BlockPos newPos = pos.add(offset);
             if (!isGoodAsBorder(mod, newPos)) {
-                Debug.logInternal("Not good as border: " + newPos);
+                Debug.logInternal("不适合作为边界: " + newPos);
                 return false;
             }
         }
 
-        Debug.logInternal("Good to place inside or clear");
+        Debug.logInternal("适合放置或清理");
         return true;
     }
 
     /**
-     * Checks if a block is suitable as a border block.
+     * 检查方块是否适合作为边界方块
      *
-     * @param mod The mod instance.
-     * @param pos The position of the block.
-     * @return true if the block can be used as a border, false otherwise.
+     * @param mod 模组实例
+     * @param pos 方块的位置
+     * @return 如果方块可以用作边界则返回true，否则返回false
      */
     private boolean isGoodAsBorder(AltoClef mod, BlockPos pos) {
-        // Check if the block is solid
+        // 检查方块是否为实心
         boolean isSolid = WorldHelper.isSolidBlock(pos);
         Debug.logInternal("isSolid: " + isSolid);
 
         if (isSolid) {
-            // Check if the block can be broken
+            // 检查方块是否可以被破坏
             boolean canBreak = WorldHelper.canBreak(pos);
             Debug.logInternal("canBreak: " + canBreak);
             return canBreak;
         } else {
-            // Check if the block is air
+            // 检查方块是否为空气
             boolean isAir = WorldHelper.isAir(pos);
             Debug.logInternal("isAir: " + isAir);
             return isAir;

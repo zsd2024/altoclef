@@ -5,11 +5,22 @@ import adris.altoclef.tasksystem.Task;
 import adris.altoclef.util.baritone.GoalDodgeProjectiles;
 import baritone.api.pathing.goals.Goal;
 
+/**
+ * 躲避投射物任务
+ * 此任务使玩家自动躲避飞行中的投射物（如箭矢）
+ */
 public class DodgeProjectilesTask extends CustomBaritoneGoalTask {
 
+    // 水平躲避距离
     private final double _distanceHorizontal;
+    // 垂直躲避距离
     private final double _distanceVertical;
 
+    /**
+     * 构造函数
+     * @param distanceHorizontal 水平躲避距离
+     * @param distanceVertical 垂直躲避距离
+     */
     public DodgeProjectilesTask(double distanceHorizontal, double distanceVertical) {
         _distanceHorizontal = distanceHorizontal;
         _distanceVertical = distanceVertical;
@@ -18,9 +29,9 @@ public class DodgeProjectilesTask extends CustomBaritoneGoalTask {
     @Override
     protected Task onTick() {
         if (cachedGoal != null) {
-            // EntityTracker runs ensureUpdated automatically which calls updateState which locks the mutex,
-            // so don't lock here.
-            // Multithreading can be a hassle in more ways than one it seems.
+            // EntityTracker会自动运行ensureUpdated，它会调用updateState并锁定互斥锁，
+            // 因此这里不要锁定。
+            // 多线程在这方面似乎会带来麻烦。
             GoalDodgeProjectiles goal = (GoalDodgeProjectiles) cachedGoal;
         }
         return super.onTick();
@@ -40,7 +51,7 @@ public class DodgeProjectilesTask extends CustomBaritoneGoalTask {
 
     @Override
     protected String toDebugString() {
-        return "Dodge arrows at " + _distanceHorizontal + " blocks away";
+        return "在 " + _distanceHorizontal + " 格距离处躲避箭矢";
     }
 
     @Override

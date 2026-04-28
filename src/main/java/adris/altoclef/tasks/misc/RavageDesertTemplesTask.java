@@ -15,7 +15,14 @@ import net.minecraft.world.biome.BiomeKeys;
 
 import java.util.List;
 
+/**
+ * 掠夺沙漠神庙任务
+ * 此任务负责在沙漠生物群系中寻找并掠夺沙漠神庙
+ */
 public class RavageDesertTemplesTask extends Task {
+    /**
+     * 沙漠神庙中可能获得的战利品列表
+     */
     public final Item[] LOOT = {
             Items.BONE,
             Items.ROTTEN_FLESH,
@@ -35,45 +42,65 @@ public class RavageDesertTemplesTask extends Task {
             Items.DIAMOND_HORSE_ARMOR,
             Items.ENCHANTED_GOLDEN_APPLE
     };
+    /**
+     * 当前找到的沙漠神庙位置
+     */
     private BlockPos currentTemple;
+    /**
+     * 当前执行的掠夺任务
+     */
     private Task lootTask;
+    /**
+     * 获取镐子的任务
+     */
     private Task pickaxeTask;
 
+    /**
+     * 构造函数
+     */
     public RavageDesertTemplesTask() {
 
     }
 
     @Override
     protected void onStart() {
+        // 保存当前行为设置
         AltoClef.getInstance().getBehaviour().push();
     }
 
     @Override
     protected Task onTick() {
+        // 如果需要获取镐子且任务未完成，先执行获取镐子任务
         if (pickaxeTask != null && !pickaxeTask.isFinished()) {
-            setDebugState("Need to get pickaxes first");
+            setDebugState("需要先获取镐子");
             return pickaxeTask;
         }
+        // 如果正在掠夺神庙且任务未完成，继续执行掠夺任务
         if (lootTask != null && !lootTask.isFinished()) {
-            setDebugState("Looting found temple");
+            setDebugState("正在掠夺找到的神庙");
             return lootTask;
         }
+        // 如果没有足够的挖掘工具，先获取木镐
         if (StorageHelper.miningRequirementMetInventory(MiningRequirement.WOOD)) {
-            setDebugState("Need to get pickaxes first");
+            setDebugState("需要先获取镐子");
             pickaxeTask = new CataloguedResourceTask(new ItemTarget(Items.WOODEN_PICKAXE, 2));
             return pickaxeTask;
         }
+        // 尝试获取一个沙漠神庙位置
         currentTemple = WorldHelper.getADesertTemple();
         if (currentTemple != null) {
+            // 找到神庙，开始掠夺任务
             lootTask = new LootDesertTempleTask(currentTemple, List.of(LOOT));
-            setDebugState("Looting found temple");
+            setDebugState("正在掠夺找到的神庙");
             return lootTask;
         }
+        // 未找到神庙，在沙漠生物群系中搜索
         return new SearchWithinBiomeTask(BiomeKeys.DESERT);
     }
 
     @Override
     protected void onStop(Task task) {
+        // 恢复之前的行为设置
         AltoClef.getInstance().getBehaviour().pop();
     }
 
@@ -84,11 +111,12 @@ public class RavageDesertTemplesTask extends Task {
 
     @Override
     public boolean isFinished() {
+        // 此任务永远不会自动完成，需要手动停止
         return false;
     }
 
     @Override
     protected String toDebugString() {
-        return "Ravaging Desert Temples";
+        return "掠夺沙漠神庙";
     }
 }

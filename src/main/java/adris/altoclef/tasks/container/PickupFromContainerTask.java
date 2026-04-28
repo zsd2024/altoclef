@@ -21,18 +21,30 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
+/**
+ * 从容器拾取物品任务 - 从指定容器中拾取特定物品到玩家背包
+ */
 public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
 
-    private final BlockPos _targetContainer;
-    private final ItemTarget[] _targets;
+    private final BlockPos _targetContainer; // 目标容器位置
+    private final ItemTarget[] _targets; // 目标物品数组
 
-    private final EnsureFreeInventorySlotTask _freeInventoryTask = new EnsureFreeInventorySlotTask();
+    private final EnsureFreeInventorySlotTask _freeInventoryTask = new EnsureFreeInventorySlotTask(); // 确保背包有空位的任务
 
     public PickupFromContainerTask(BlockPos targetContainer, ItemTarget... targets) {
         _targets = targets;
         _targetContainer = targetContainer;
     }
 
+    /**
+     * 获取最佳转移槽位 - 选择最符合需求的槽位来转移物品
+     * @param mod AltoClef实例
+     * @param itemToMove 要移动的物品目标
+     * @param currentItemQuantity 当前已有的物品数量
+     * @param grabPotentials 可能的槽位列表
+     * @param canStackFit 检查物品堆叠是否能放入背包的函数
+     * @return 最佳槽位的Optional
+     */
     public static Optional<Slot> getBestSlotToTransfer(AltoClef mod, ItemTarget itemToMove, int currentItemQuantity, List<Slot> grabPotentials, Function<ItemStack, Boolean> canStackFit) {
         Slot bestPotential = null;
         int leftNeeded = itemToMove.getTargetCount() - currentItemQuantity;
@@ -48,18 +60,18 @@ public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
                 int currBestOverhoot = currBest.getCount() - leftNeeded;
                 boolean canFit = canStackFit.apply(stack);
                 boolean currBestCanFit = canStackFit.apply(currBest);
-                // Prioritize "fitting" in our inventory.
+                // 优先选择能放入背包的物品堆叠
                 if (canFit || !currBestCanFit) {
                     if (overshoot < 0) {
-                        // Prioritize highest that goes under, then lowest that goes over.
+                        // 优先选择数量最接近但不超过需求的，然后是最少超出的
                         if (currBestOverhoot > 0 || overshoot > currBestOverhoot)
                             bestPotential = slot;
                     } else if (overshoot > 0) {
-                        // Prioritize the smaller overshoot.
+                        // 优先选择超出最少的
                         if (overshoot < currBestOverhoot)
                             bestPotential = slot;
                     } else if (currBestOverhoot != 0) {
-                        // We have a "perfect" fit.
+                        // 我们有完美的匹配
                         bestPotential = slot;
                     }
                 }
@@ -78,7 +90,7 @@ public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
 
     @Override
     protected String toDebugString() {
-        return "Picking up from container at (" + _targetContainer.toShortString() + "): " + Arrays.toString(_targets);
+        return "从容器 (" + _targetContainer.toShortString() + ") 拾取: " + Arrays.toString(_targets);
     }
 
     @Override
@@ -88,9 +100,9 @@ public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
 
     @Override
     protected Task onTick() {
-        // Free inventory while we're doing it.
+        // 在执行过程中释放背包空间
         if (_freeInventoryTask.isActive() && !_freeInventoryTask.isFinished() && !AltoClef.getInstance().getItemStorage().hasEmptyInventorySlot()) {
-            setDebugState("Freeing inventory.");
+            setDebugState("释放背包空间");
             return _freeInventoryTask;
         }
         return super.onTick();
@@ -98,6 +110,7 @@ public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
 
     @Override
     public boolean isFinished() {
+        // 当所有目标物品都已收集完成时，任务完成
         return Arrays.stream(_targets).allMatch(target -> AltoClef.getInstance().getItemStorage().getItemCountInventoryOnly(target.getMatches()) >= target.getTargetCount());
     }
 
@@ -109,11 +122,11 @@ public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
             if (target.matches(StorageHelper.getItemStackInCursorSlot().getItem()))
                 count -= StorageHelper.getItemStackInCursorSlot().getCount();
             if (count < target.getTargetCount()) {
-                setDebugState("Collecting " + target);
-                // Grab the item from the current chest that most closely matches our requirements
+                setDebugState("收集 " + target);
+                // 从当前容器中获取最符合我们需求的物品
                 List<Slot> potentials = mod.getItemStorage().getSlotsWithItemContainer(target.getMatches());
 
-                // Pick the best slot to grab from.
+                // 选择最佳槽位进行拾取
                 Optional<Slot> bestPotential = getBestSlotToTransfer(mod, target, count, potentials, stack -> mod.getItemStorage().getSlotThatCanFitInPlayerInventory(stack, false).isPresent());
                 ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
                 if (!cursorStack.isEmpty()) {
@@ -136,12 +149,12 @@ public class PickupFromContainerTask extends AbstractDoToStorageContainerTask {
                     mod.getSlotHandler().clickSlot(bestPotential.get(), 0, SlotActionType.PICKUP);
                     return null;
                 }
-                setDebugState("SHOULD NOT HAPPEN! No valid items detected.");
+                setDebugState("不应发生！未检测到有效物品。");
             }
         }
 
-        // We're done.
-        setDebugState("Done");
+        // 我们完成了
+        setDebugState("完成");
         if (mod.getPlayer().currentScreenHandler instanceof SmokerScreenHandler || mod.getPlayer().currentScreenHandler
                 instanceof FurnaceScreenHandler) {
             mod.getSlotHandler().clickSlot(FurnaceSlot.INPUT_SLOT_MATERIALS, 0, SlotActionType.PICKUP);

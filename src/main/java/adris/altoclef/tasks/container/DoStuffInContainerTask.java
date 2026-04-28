@@ -24,22 +24,22 @@ import java.util.Optional;
 
 
 /**
- * Interacts with a container, obtaining and placing one if none were found nearby.
+ * 在容器内执行操作的抽象任务基类。
+ * 如果附近没有找到合适的容器，会自动获取并放置一个容器。
  */
 public abstract class DoStuffInContainerTask extends Task {
 
-    private final ItemTarget containerTarget;
-    private final Block[] containerBlocks;
+    private final ItemTarget containerTarget; // 容器物品目标
+    private final Block[] containerBlocks; // 容器方块类型数组
 
-    private final PlaceBlockNearbyTask placeTask;
-    // If we decided on placing, force place for at least 1 second
-    // (originally 10)
+    private final PlaceBlockNearbyTask placeTask; // 放置容器方块的任务
+    // 如果决定放置容器，则强制放置至少1秒（原为10秒）
     private final TimerGame placeForceTimer = new TimerGame(1);
 
-    // If we just placed something, stop placing and try going to the nearest container.
+    // 如果刚刚放置了容器，停止放置并尝试前往最近的容器
     private final TimerGame justPlacedTimer = new TimerGame(3);
-    private BlockPos cachedContainerPosition = null;
-    private Task openTableTask;
+    private BlockPos cachedContainerPosition = null; // 缓存的容器位置
+    private Task openTableTask; // 打开容器的任务
 
     public DoStuffInContainerTask(Block[] containerBlocks, ItemTarget containerTarget) {
         this.containerBlocks = containerBlocks;
@@ -60,16 +60,16 @@ public abstract class DoStuffInContainerTask extends Task {
             openTableTask = new DoToClosestBlockTask(InteractWithBlockTask::new, containerBlocks);
         }
 
-        // Protect container since we might place it.
+        // 保护容器物品，因为我们可能会放置它
         mod.getBehaviour().addProtectedItems(ItemHelper.blocksToItems(containerBlocks));
     }
 
     @Override
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
-        // If we're placing, keep on placing.
+        // 如果正在放置容器，继续放置
         if (mod.getItemStorage().hasItem(ItemHelper.blocksToItems(containerBlocks)) && placeTask.isActive() && !placeTask.isFinished()) {
-            setDebugState("Placing container");
+            setDebugState("正在放置容器");
             return placeTask;
         }
 
@@ -86,14 +86,14 @@ public abstract class DoStuffInContainerTask extends Task {
         BlockPos override = overrideContainerPosition(mod);
 
         if (override != null && mod.getBlockScanner().isBlockAtPosition(override, containerBlocks)) {
-            // We have an override so go there instead.
+            // 我们有覆盖位置，直接前往那里
             nearest = Optional.of(override);
         } else {
-            // Track nearest container
+            // 跟踪最近的容器
             nearest = mod.getBlockScanner().getNearestBlock(currentPos, blockPos -> WorldHelper.canReach(blockPos), containerBlocks);
         }
         if (nearest.isEmpty()) {
-            // If all else fails, try using our placed task
+            // 如果其他方法都失败了，尝试使用我们放置的任务
             nearest = Optional.ofNullable(placeTask.getPlaced());
             if (nearest.isPresent() && !mod.getBlockScanner().isBlockAtPosition(nearest.get(), containerBlocks)) {
                 nearest = Optional.empty();
@@ -103,42 +103,42 @@ public abstract class DoStuffInContainerTask extends Task {
             costToWalk = BaritoneHelper.calculateGenericHeuristic(currentPos, WorldHelper.toVec3d(nearest.get()));
         }
 
-        // Make a new container if going to the container is a pretty bad cost.
-        // Also keep on making the container if we're stuck in some
+        // 如果前往现有容器的成本很高，则制作一个新的容器
+        // 如果我们卡在某些情况下，也继续制作容器
         if (costToWalk > getCostToMakeNew(mod)) {
             placeForceTimer.reset();
         }
         if (nearest.isEmpty() || (!placeForceTimer.elapsed() && justPlacedTimer.elapsed())) {
-            // It's cheaper to make a new one, or our only option.
+            // 制作一个新的容器更便宜，或者这是我们唯一的选择
 
-            // We're no longer going to our previous container.
+            // 我们不再前往之前的容器
             cachedContainerPosition = null;
 
-            // Get if we don't have...
+            // 如果我们没有容器物品...
             if (!mod.getItemStorage().hasItem(containerTarget)) {
-                setDebugState("Getting container item");
+                setDebugState("获取容器物品");
                 return TaskCatalogue.getItemTask(containerTarget);
             }
 
-            setDebugState("Placing container...");
+            setDebugState("正在放置容器...");
 
             justPlacedTimer.reset();
-            // Now place!
+            // 现在放置！
             return placeTask;
         }
 
-        // This is insanely cursed.
-        // TODO: Finish committing to optionals, this is ugly.
+        // 这段代码非常复杂（原注释：insanely cursed）
+        // TODO: 完全使用Optional，这段代码很丑陋
         cachedContainerPosition = nearest.get();
 
-        // Walk to it and open it
+        // 走向容器并打开它
 
-        // Wait for food
+        // 等待进食
         if (mod.getFoodChain().needsToEat()) {
-            setDebugState("Waiting for eating...");
+            setDebugState("等待进食...");
             return null;
         }
-        setDebugState("Walking to container... " + nearest.get().toShortString());
+        setDebugState("走向容器... " + nearest.get().toShortString());
 
         if (!StorageHelper.getItemStackInCursorSlot().isEmpty()) {
             Optional<Slot> toMoveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(StorageHelper.getItemStackInCursorSlot(), false);
@@ -186,7 +186,7 @@ public abstract class DoStuffInContainerTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Doing stuff in " + containerTarget + " container";
+        return "在 " + containerTarget + " 容器中执行操作";
     }
 
     protected abstract boolean isSubTaskEqual(DoStuffInContainerTask other);

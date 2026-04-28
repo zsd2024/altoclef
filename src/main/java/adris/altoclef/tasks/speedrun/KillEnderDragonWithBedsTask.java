@@ -28,6 +28,10 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * 使用床击杀末影龙任务
+ * 通过在末地传送门顶部放置床并引爆来击杀末影龙的自动化任务
+ */
 public class KillEnderDragonWithBedsTask extends Task {
     private final WaitForDragonAndPearlTask whenNotPerchingTask;
     TimerGame placeBedTimer = new TimerGame(0.6);
@@ -44,6 +48,11 @@ public class KillEnderDragonWithBedsTask extends Task {
         whenNotPerchingTask = new WaitForDragonAndPearlTask();
     }
 
+    /**
+     * 定位末地出口传送门顶部位置
+     * @param mod AltoClef主实例
+     * @return 末地传送门顶部的方块位置，如果未找到则返回null
+     */
     public static BlockPos locateExitPortalTop(AltoClef mod) {
         if (!mod.getChunkTracker().isChunkLoaded(new BlockPos(0, 64, 0))) return null;
         int height = WorldHelper.getGroundHeight(0, 0, Blocks.BEDROCK);
@@ -53,7 +62,7 @@ public class KillEnderDragonWithBedsTask extends Task {
 
     @Override
     protected void onStart() {
-        // do not block our view
+        // 不要阻挡我们的视野
         AltoClef.getInstance().getBehaviour().avoidBlockPlacing((pos) -> pos.getZ() == 0 && Math.abs(pos.getX()) < 5);
     }
 
@@ -62,17 +71,17 @@ public class KillEnderDragonWithBedsTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         /*
-            If dragon is perching:
-                If we're not in position (XZ):
-                    Get in position (XZ)
-                If there's no bed:
-                    If we can't "reach" the top of the pillar:
-                        Jump
-                    Place a bed
-                If the dragon's head hitbox is close enough to the bed:
-                    Right click the bed
-            Else:
-                // Perform "Default Wander" mode and avoid dragon breath.
+            如果末影龙正在栖息：
+                如果我们不在正确位置（XZ坐标）：
+                    移动到正确位置（XZ坐标）
+                如果没有床：
+                    如果我们无法"够到"柱子顶部：
+                        跳跃
+                    放置一张床
+                如果末影龙头部碰撞箱足够接近床：
+                    右键点击床
+            否则：
+                // 执行"默认漫游"模式并避开龙息
          */
         if (endPortalTop == null) {
             endPortalTop = locateExitPortalTop(mod);
@@ -82,7 +91,7 @@ public class KillEnderDragonWithBedsTask extends Task {
         }
 
         if (endPortalTop == null) {
-            setDebugState("Searching for end portal top.");
+            setDebugState("正在搜索末地传送门顶部。");
             return new GetToXZTask(0, 0);
         }
 
@@ -109,15 +118,15 @@ public class KillEnderDragonWithBedsTask extends Task {
 
 
         if (dragonDead) {
-            setDebugState("Waiting for overworld portal to spawn.");
+            setDebugState("等待主世界传送门生成。");
             return new GetToBlockTask(endPortalTop.down(4).west());
         }
 
         if (!mod.getEntityTracker().entityFound(EnderDragonEntity.class) || dragonDead) {
-            setDebugState("No dragon found.");
+            setDebugState("未找到末影龙。");
 
             if (!WorldHelper.inRangeXZ(mod.getPlayer(), endPortalTop, 1)) {
-                setDebugState("Going to end portal top at" + endPortalTop.toString() + ".");
+                setDebugState("前往末地传送门顶部" + endPortalTop.toString() + "。");
                 return new GetToBlockTask(endPortalTop);
             }
         }
@@ -126,7 +135,7 @@ public class KillEnderDragonWithBedsTask extends Task {
             Phase dragonPhase = dragon.getPhaseManager().getCurrent();
 
             if (dragonPhase.getType() == PhaseType.DYING) {
-                Debug.logMessage("Dragon is dead.");
+                Debug.logMessage("末影龙已死亡。");
                 if (mod.getPlayer().getPitch() != -90) {
                     mod.getPlayer().setPitch(-90);
                 }
@@ -136,14 +145,14 @@ public class KillEnderDragonWithBedsTask extends Task {
 
             boolean perching = dragonPhase instanceof LandingPhase || dragonPhase instanceof LandingApproachPhase || dragonPhase.isSittingOrHovering();
             if (dragon.getY() < endPortalTop.getY() + 2) {
-                // Dragon is already perched.
+                // 末影龙已经栖息。
                 perching = false;
             }
 
             whenNotPerchingTask.setPerchState(perching);
-            // When the dragon is not perching...
+            // 当末影龙不处于栖息状态时...
             if (whenNotPerchingTask.isActive() && !whenNotPerchingTask.isFinished()) {
-                setDebugState("Dragon not perching, performing special behavior...");
+                setDebugState("末影龙未栖息，执行特殊行为...");
                 return whenNotPerchingTask;
             }
             if (perching) {
@@ -151,16 +160,22 @@ public class KillEnderDragonWithBedsTask extends Task {
             }
         }
         mod.getFoodChain().shouldStop(false);
-        // Start our "Not perching task"
+        // 开始我们的"非栖息状态任务"
         return whenNotPerchingTask;
     }
 
+    /**
+     * 执行一次完整的击杀循环
+     * @param mod AltoClef主实例
+     * @param dragon 末影龙实体
+     * @return 下一个要执行的任务
+     */
     private Task performOneCycle(AltoClef mod, EnderDragonEntity dragon) {
         mod.getFoodChain().shouldStop(true);
         if (mod.getInputControls().isHeldDown(Input.SNEAK)) {
             mod.getInputControls().release(Input.SNEAK);
         }
-        // do not let shield fuck up our moment :3
+        // 不要让盾牌破坏我们的关键时刻 :3
         mod.getSlotHandler().forceEquipItemToOffhand(Items.AIR);
 
         BlockPos endPortalTop = KillEnderDragonWithBedsTask.locateExitPortalTop(mod).up();
@@ -176,7 +191,7 @@ public class KillEnderDragonWithBedsTask extends Task {
         }
 
         if (dir == null) {
-            mod.log("no obisidan? :(");
+            mod.log("没有黑曜石？ :(");
             return null;
         }
 
@@ -192,7 +207,7 @@ public class KillEnderDragonWithBedsTask extends Task {
             waitBeforePlaceTimer.reset();
         }
         if (!waitBeforePlaceTimer.elapsed()) {
-            mod.log(waitBeforePlaceTimer.getDuration() + " waiting...");
+            mod.log(waitBeforePlaceTimer.getDuration() + " 等待中...");
             return null;
         }
 
@@ -212,8 +227,8 @@ public class KillEnderDragonWithBedsTask extends Task {
             return null;
         }
 
-        // most of these numbers were arbitrarily added through some testing, its possible not all of these cases need to be tested
-        // it seems to work fairly well tho, so I would rather not touch it :p
+        // 这些数值大多是通过一些测试任意添加的，可能并非所有情况都需要测试
+        // 但似乎效果相当不错，所以我宁愿不要改动它 :p
         Vec3d dragonHeadPos = dragon.head.getBoundingBox().getCenter();
         Vec3d bedHeadPos = WorldHelper.toVec3d(bedHead);
 
@@ -241,6 +256,12 @@ public class KillEnderDragonWithBedsTask extends Task {
         return null;
     }
 
+    /**
+     * 计算两个向量在忽略Y轴情况下的距离
+     * @param vec 第一个向量
+     * @param vec1 第二个向量
+     * @return 忽略Y轴的距离
+     */
     public double distanceIgnoreY(Vec3d vec, Vec3d vec1) {
         double d = vec.x - vec1.x;
         double f = vec.z - vec1.z;
@@ -264,6 +285,6 @@ public class KillEnderDragonWithBedsTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Bedding the Ender Dragon";
+        return "用床击杀末影龙";
     }
 }

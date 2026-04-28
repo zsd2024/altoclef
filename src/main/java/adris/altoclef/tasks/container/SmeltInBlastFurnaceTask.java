@@ -30,22 +30,22 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 
-// Ref
+// 参考
 // https://minecraft.gamepedia.com/Smelting
 
 /**
- * Smelt in a blast furnace, placing a blast furnace and collecting fuel as needed.
+ * 高炉烧炼任务 - 在高炉中烧炼物品，必要时放置高炉并收集燃料
  */
 public class SmeltInBlastFurnaceTask extends ResourceTask {
 
-    private final SmeltTarget[] _targets;
+    private final SmeltTarget[] _targets; // 烧炼目标数组
 
-    private final DoSmeltInBlastFurnaceTask _doTask;
+    private final DoSmeltInBlastFurnaceTask _doTask; // 执行烧炼的具体任务
 
     public SmeltInBlastFurnaceTask(SmeltTarget[] targets) {
         super(extractItemTargets(targets));
         _targets = targets;
-        // TODO: Do them in order.
+        // TODO: 按顺序执行多个目标
         _doTask = new DoSmeltInBlastFurnaceTask(targets[0]);
     }
 
@@ -74,7 +74,7 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
     protected void onResourceStart(AltoClef mod) {
         mod.getBehaviour().push();
         if (_targets.length != 1) {
-            Debug.logWarning("Tried smelting multiple targets, only one target is supported at a time!");
+            Debug.logWarning("尝试烧炼多个目标，但一次只支持一个目标！");
         }
     }
 
@@ -128,12 +128,15 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
     }
 
     @SuppressWarnings("ConditionCoveredByFurtherCondition")
+    /**
+     * 执行高炉烧炼的具体任务类
+     */
     static class DoSmeltInBlastFurnaceTask extends DoStuffInContainerTask {
 
-        private final SmeltTarget _target;
-        private final BlastFurnaceCache _blastFurnaceCache = new BlastFurnaceCache();
-        private final ItemTarget _allMaterials;
-        private boolean _ignoreMaterials;
+        private final SmeltTarget _target; // 烧炼目标
+        private final BlastFurnaceCache _blastFurnaceCache = new BlastFurnaceCache(); // 高炉缓存
+        private final ItemTarget _allMaterials; // 所有材料（包括可选材料）
+        private boolean _ignoreMaterials; // 是否忽略材料检查
 
         public DoSmeltInBlastFurnaceTask(SmeltTarget target) {
             super(Blocks.BLAST_FURNACE, new ItemTarget(Items.BLAST_FURNACE));
@@ -163,6 +166,7 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
             super.onStart();
             AltoClef mod = AltoClef.getInstance();
 
+            // 保护必要的物品，防止在烧炼过程中被丢弃
             mod.getBehaviour().addProtectedItems(ItemHelper.PLANKS);
             mod.getBehaviour().addProtectedItems(Items.COAL);
             mod.getBehaviour().addProtectedItems(_allMaterials.getMatches());
@@ -194,24 +198,24 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
                     - (outputTarget.matches(_blastFurnaceCache.outputSlot.getItem()) ? _blastFurnaceCache.outputSlot.getCount() : 0)
                     - totalFuelInBlastFurnace;
 
-            // We don't have enough materials...
+            // 材料不足...
             if (mod.getItemStorage().getItemCount(materialTarget.getMatches()) < materialsNeeded) {
-                setDebugState("Getting Materials");
+                setDebugState("获取材料");
                 return getMaterialTask(_target.getMaterial());
             }
 
-            // We don't have enough fuel...
+            // 燃料不足...
             if (_blastFurnaceCache.burningFuelCount <= 0 && StorageHelper.calculateInventoryFuelCount(mod) < fuelNeeded) {
-                setDebugState("Getting Fuel");
+                setDebugState("获取燃料");
                 return new CollectFuelTask(fuelNeeded + 1);
             }
 
-            // Make sure our materials are accessible in our inventory
+            // 确保我们的材料在背包中可访问
             if (StorageHelper.isItemInaccessibleToContainer(mod, _allMaterials)) {
                 return new MoveInaccessibleItemToInventoryTask(_allMaterials);
             }
 
-            // We have fuel and materials. Get to our container and smelt!
+            // 我们有足够的燃料和材料。前往容器并开始烧炼！
             return super.onTick();
         }
 
@@ -225,10 +229,10 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
         protected Task containerSubTask(AltoClef mod) {
             // We have appropriate materials/fuel.
             /*
-             * - If output slot has something, receive it.
-             * - Calculate needed material input. If we don't have, put it in.
-             * - Calculate needed fuel input. If we don't have, put it in.
-             * - Wait lol
+             * - 如果输出槽有物品，接收它
+             * - 计算需要的材料输入，如果没有就放入
+             * - 计算需要的燃料输入，如果没有就放入
+             * - 等待烧炼完成
              */
             ItemStack output = StorageHelper.getItemStackInSlot(BlastFurnaceSlot.OUTPUT_SLOT);
             ItemStack material = StorageHelper.getItemStackInSlot(BlastFurnaceSlot.INPUT_SLOT_MATERIALS);
@@ -258,8 +262,8 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
                 }
             }
             if (!output.isEmpty()) {
-                setDebugState("Receiving Output");
-                // Ensure our cursor is empty/can receive our item
+                setDebugState("接收输出");
+                // 确保光标为空或能接收我们的物品
                 ItemStack cursor = StorageHelper.getItemStackInCursorSlot();
                 if (!ItemHelper.canStackTogether(output, cursor)) {
                     Optional<Slot> toFit = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursor, false);
@@ -267,30 +271,30 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
                         mod.getSlotHandler().clickSlot(toFit.get(), 0, SlotActionType.PICKUP);
                         return null;
                     } else {
-                        // Eh screw it
+                        // 唉，算了
                         if (ItemHelper.canThrowAwayStack(mod, cursor)) {
                             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
                             return null;
                         }
                     }
                 }
-                // Pick up
+                // 拾取输出物品
                 mod.getSlotHandler().clickSlot(BlastFurnaceSlot.OUTPUT_SLOT, 0, SlotActionType.PICKUP);
                 return null;
                 // return new MoveItemToSlotTask(new ItemTarget(output.getItem(), output.getCount()), toMoveTo.get(), mod -> FurnaceSlot.OUTPUT_SLOT);
             }
 
-            // Fill in input if needed
-            // Materials needed in slot = (mat_target - out_in_inventory - out_in_furnace)
+            // 如果需要，填充输入槽
+            // 槽中所需材料 = (材料目标数量 - 背包中的产出数量 - 炉子中的产出数量)
             ItemTarget materialTarget = _allMaterials;
 
             int neededMaterialsInSlot = materialTarget.getTargetCount()
                     - mod.getItemStorage().getItemCountInventoryOnly(_target.getItem().getMatches())
                     - (_target.getItem().matches(output.getItem()) ? output.getCount() : 0);
-            // We don't have the right material or we need more
+            // 我们没有正确的材料或者需要更多
             if (!_allMaterials.matches(material.getItem()) || neededMaterialsInSlot > material.getCount()) {
                 int materialsAlreadyIn = (materialTarget.matches(material.getItem()) ? material.getCount() : 0);
-                setDebugState("Moving Materials");
+                setDebugState("移动材料");
                 return new MoveItemToSlotFromInventoryTask(new ItemTarget(materialTarget, neededMaterialsInSlot - materialsAlreadyIn), BlastFurnaceSlot.INPUT_SLOT_MATERIALS);
             }
 
@@ -303,12 +307,12 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
                     - (outputTarget.matches(_furnaceCache.outputSlot.getItem()) ? _furnaceCache.outputSlot.getCount() : 0)
                     - totalFuelInFurnace;
              */
-            // Fill in fuel if needed
+            // 如果需要，填充燃料
             if (fuel.isEmpty() || ItemHelper.isFuel(fuel.getItem())) {
                 double currentlyCached = StorageHelper.getBlastFurnaceFuel() + StorageHelper.getBlastFurnaceCookPercent();
                 double needs = material.getCount() - currentlyCached;
                 if (needs > 0) {
-                    // Get best fuel to fill
+                    // 获取最佳燃料进行填充
                     double closestDelta = Double.NEGATIVE_INFINITY;
                     ItemStack bestStack = null;
                     for (ItemStack stack : mod.getItemStorage().getItemStacksPlayerInventory(true)) {
@@ -317,9 +321,9 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
                             double delta = needs - fuelAmount;
                             if (
                                     (bestStack == null) ||
-                                            // If our best is above, prioritize lower values
+                                            // 如果当前最佳超出需求，优先选择更低的值
                                             (closestDelta > 0 && delta < closestDelta) ||
-                                            // If our best is below, prioritize higher below values
+                                            // 如果当前最佳低于需求，优先选择更高的值（但仍低于需求）
                                             (closestDelta < 0 && delta < 0 && delta > closestDelta)
                             ) {
                                 bestStack = stack;
@@ -328,13 +332,13 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
                         }
                     }
                     if (bestStack != null) {
-                        setDebugState("Filling fuel");
+                        setDebugState("填充燃料");
                         return new MoveItemToSlotFromInventoryTask(new ItemTarget(bestStack.getItem(), bestStack.getCount()), BlastFurnaceSlot.INPUT_SLOT_FUEL);
                     }
                 }
             }
 
-            setDebugState("Waiting...");
+            setDebugState("等待烧炼...");
             return null;
         }
 
@@ -372,11 +376,14 @@ public class SmeltInBlastFurnaceTask extends ResourceTask {
         }
     }
 
+    /**
+     * 高炉缓存类 - 存储高炉当前状态
+     */
     static class BlastFurnaceCache {
-        public ItemStack materialSlot = ItemStack.EMPTY;
-        public ItemStack fuelSlot = ItemStack.EMPTY;
-        public ItemStack outputSlot = ItemStack.EMPTY;
-        public double burningFuelCount;
-        public double burnPercentage;
+        public ItemStack materialSlot = ItemStack.EMPTY; // 材料槽
+        public ItemStack fuelSlot = ItemStack.EMPTY; // 燃料槽
+        public ItemStack outputSlot = ItemStack.EMPTY; // 输出槽
+        public double burningFuelCount; // 正在燃烧的燃料数量
+        public double burnPercentage; // 烧炼进度百分比
     }
 }

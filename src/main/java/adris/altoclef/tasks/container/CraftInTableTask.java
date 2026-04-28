@@ -31,7 +31,8 @@ import net.minecraft.util.math.BlockPos;
 import java.util.*;
 
 /**
- * Crafts an item in a crafting table, obtaining and placing the table down if none was found.
+ * 工作台合成任务
+ * 在工作台中合成物品，如果没有找到工作台则会获取并放置一个
  */
 public class CraftInTableTask extends ResourceTask {
 
@@ -56,23 +57,23 @@ public class CraftInTableTask extends ResourceTask {
     }
 
     /**
-     * Extracts item targets from recipe targets.
+     * 从配方目标中提取物品目标
      *
-     * @param recipeTargets The array of recipe targets.
-     * @return The array of item targets.
+     * @param recipeTargets 配方目标数组
+     * @return 物品目标数组
      */
     private static ItemTarget[] extractItemTargets(RecipeTarget[] recipeTargets) {
-        // Use Java streams to map each recipe target to a new item target
+        // 使用Java流将每个配方目标映射为新的物品目标
         return Arrays.stream(recipeTargets)
                 .map(t -> new ItemTarget(t.getOutputItem(), t.getTargetCount()))
                 .toArray(ItemTarget[]::new);
     }
 
     /**
-     * Determines whether the player should avoid picking up items.
+     * 确定玩家是否应避免拾取物品
      *
-     * @param mod The AltoClef mod instance.
-     * @return true if the player should avoid picking up items, false otherwise.
+     * @param mod AltoClef模组实例
+     * @return 如果玩家应避免拾取物品则返回true，否则返回false
      */
     @Override
     protected boolean shouldAvoidPickingUp(AltoClef mod) {
@@ -80,9 +81,9 @@ public class CraftInTableTask extends ResourceTask {
     }
 
     /**
-     * Called when the resource starts.
+     * 资源任务开始时调用
      *
-     * @param mod The AltoClef mod instance.
+     * @param mod AltoClef模组实例
      */
     @Override
     protected void onResourceStart(AltoClef mod) {
@@ -90,11 +91,11 @@ public class CraftInTableTask extends ResourceTask {
     }
 
     /**
-     * This method is called on each tick of the resource manager.
-     * It returns the task that should be executed on each tick.
+     * 资源管理器每次tick时调用此方法
+     * 返回每次tick应执行的任务
      *
-     * @param mod The instance of the AltoClef mod.
-     * @return The task to be executed on each tick.
+     * @param mod AltoClef模组实例
+     * @return 每次tick要执行的任务
      */
     @Override
     protected Task onResourceTick(AltoClef mod) {
@@ -102,64 +103,64 @@ public class CraftInTableTask extends ResourceTask {
     }
 
     /**
-     * Override method called when the resource stops.
+     * 资源任务停止时重写的方法
      *
-     * @param mod           The AltoClef mod.
-     * @param interruptTask The interrupt task.
+     * @param mod           AltoClef模组
+     * @param interruptTask 中断任务
      */
     @Override
     protected void onResourceStop(AltoClef mod, Task interruptTask) {
-        // Get the item stack in the cursor slot.
+        // 获取光标槽中的物品堆栈
         ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
 
-        // If the cursor stack is not empty, handle it.
+        // 如果光标槽不为空，则处理它
         if (!cursorStack.isEmpty()) {
-            // Find a slot in the player inventory that can fit the cursor stack.
+            // 查找玩家背包中可以容纳光标槽物品的槽位
             Optional<Slot> moveToSlot = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
 
-            // If a slot is found, pick up the item from the cursor slot and move it to the found slot.
+            // 如果找到槽位，则从光标槽拾取物品并移动到找到的槽位
             moveToSlot.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
 
-            // If the item can be thrown away, pick up the item from the cursor slot and throw it away.
+            // 如果物品可以丢弃，则从光标槽拾取物品并丢弃
             if (ItemHelper.canThrowAwayStack(mod, cursorStack)) {
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             }
 
-            // Find the garbage slot and move the item from the cursor slot to the garbage slot.
+            // 查找垃圾槽并将光标槽中的物品移动到垃圾槽
             Optional<Slot> garbageSlot = StorageHelper.getGarbageSlot(mod);
             garbageSlot.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
         } else {
-            // If the cursor stack is empty, close the screen.
+            // 如果光标槽为空，则关闭界面
             StorageHelper.closeScreen();
         }
 
-        // Pick up an undefined slot.
+        // 拾取未定义的槽位
         mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
     }
 
     /**
-     * Checks if the given ResourceTask is equal to this CraftInTableTask.
+     * 检查给定的ResourceTask是否等于此CraftInTableTask
      *
-     * @param other The ResourceTask to compare with.
-     * @return true if the ResourceTask is a CraftInTableTask and its craftTask is equal to this task's craftTask, false otherwise.
+     * @param other 要比较的ResourceTask
+     * @return 如果ResourceTask是CraftInTableTask且其craftTask等于此任务的craftTask，则返回true，否则返回false
      */
     @Override
     protected boolean isEqualResource(ResourceTask other) {
-        // Check if the other task is an instance of CraftInTableTask
+        // 检查其他任务是否为CraftInTableTask的实例
         if (other instanceof CraftInTableTask task) {
-            // Compare the craftTask of the two tasks
+            // 比较两个任务的craftTask
             return craftTask.isEqual(task.craftTask);
         }
-        // The other task is not a CraftInTableTask, return false
+        // 其他任务不是CraftInTableTask，返回false
         return false;
     }
 
     /**
-     * Returns the debug string name of the craft task.
-     * If the craft task is not null, it calls the toDebugString() method of the craft task and returns the result.
-     * Otherwise, it returns null.
+     * 返回craft任务的调试字符串名称
+     * 如果craft任务不为null，则调用craft任务的toDebugString()方法并返回结果
+     * 否则返回null
      *
-     * @return the debug string name of the craft task, or null if the craft task is null.
+     * @return craft任务的调试字符串名称，如果craft任务为null则返回null
      */
     @Override
     protected String toDebugStringName() {
@@ -167,9 +168,9 @@ public class CraftInTableTask extends ResourceTask {
     }
 
     /**
-     * Returns a copy of the recipe targets.
+     * 返回配方目标的副本
      *
-     * @return The recipe targets.
+     * @return 配方目标
      */
     public RecipeTarget[] getRecipeTargets() {
         return Arrays.copyOf(targets, targets.length);
@@ -190,7 +191,7 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
     private int _craftCount;
 
     public DoCraftInTableTask(RecipeTarget[] targets, boolean collect, boolean ignoreUncataloguedSlots) {
-        super(Blocks.CRAFTING_TABLE, new ItemTarget("crafting_table"));
+        super(Blocks.CRAFTING_TABLE, new ItemTarget("工作台"));
         _collectTask = new CollectRecipeCataloguedResourcesTask(false, targets);
         _targets = targets;
         _collect = collect;
@@ -201,113 +202,113 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
     }
 
     /**
-     * Override method called when the mod starts.
-     * Refactored to handle item management and screen closing.
-     * Resets the collect task.
+     * 模组启动时重写的方法
+     * 重构以处理物品管理和界面关闭
+     * 重置收集任务
      */
     @Override
     protected void onStart() {
         super.onStart();
         AltoClef mod = AltoClef.getInstance();
-        // Save the current behaviour and craft count
+        // 保存当前行为和合成计数
         mod.getBehaviour().push();
         _craftCount = 0;
 
-        // Check if there is an item in the cursor slot
+        // 检查光标槽中是否有物品
         ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
 
         if (!cursorStack.isEmpty()) {
-            // Move the item to a slot in the player's inventory that can fit it
+            // 将物品移动到玩家背包中可以容纳它的槽位
             Optional<Slot> moveTo = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
             moveTo.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
 
-            // Check if the item can be thrown away
+            // 检查物品是否可以丢弃
             if (ItemHelper.canThrowAwayStack(mod, cursorStack)) {
-                // Throw away the item
+                // 丢弃物品
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             }
 
-            // Move the item to the garbage slot
+            // 将物品移动到垃圾槽
             StorageHelper.getGarbageSlot(mod).ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
 
-            // Clear the cursor slot
+            // 清空光标槽
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
         } else {
-            // Close the screen if there is no item in the cursor slot
+            // 如果光标槽中没有物品，则关闭界面
             StorageHelper.closeScreen();
         }
 
-        // Reset the collect task
+        // 重置收集任务
         _collectTask.reset();
 
-        // Add protected items to the behaviour
+        // 将保护物品添加到行为中
         mod.getBehaviour().addProtectedItems(getMaterialsArray());
     }
 
     /**
-     * This method is called when the task is interrupted or stopped.
-     * It performs the necessary actions to handle the interruption or stopping of the task.
+     * 任务被中断或停止时调用此方法
+     * 执行处理任务中断或停止所需的必要操作
      *
-     * @param interruptTask The task that caused the interruption, or null if the task was stopped manually.
+     * @param interruptTask 导致中断的任务，如果手动停止任务则为null
      */
     @Override
     protected void onStop(Task interruptTask) {
-        // Get the item stack in the cursor slot
+        // 获取光标槽中的物品堆栈
         ItemStack cursorStack = StorageHelper.getItemStackInCursorSlot();
         AltoClef mod = AltoClef.getInstance();
 
-        // If the cursor stack is empty, close the screen
+        // 如果光标槽为空，则关闭界面
         if (cursorStack.isEmpty()) {
             StorageHelper.closeScreen();
         } else {
-            // Get a slot that can fit the cursor stack
+            // 获取可以容纳光标槽物品的槽位
             Optional<Slot> moveToSlot = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursorStack, false);
 
-            // If a slot is found, move the cursor stack to that slot
+            // 如果找到槽位，则将光标槽物品移动到该槽位
             moveToSlot.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
 
-            // If the cursor stack can be thrown away, throw it away
+            // 如果光标槽物品可以丢弃，则丢弃它
             if (ItemHelper.canThrowAwayStack(mod, cursorStack)) {
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             }
 
-            // Get the garbage slot
+            // 获取垃圾槽
             Optional<Slot> garbageSlot = StorageHelper.getGarbageSlot(mod);
 
-            // If a garbage slot is found, move the cursor stack to that slot
+            // 如果找到垃圾槽，则将光标槽物品移动到该槽位
             garbageSlot.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
 
-            // Move the cursor stack to an undefined slot
+            // 将光标槽物品移动到未定义槽位
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
         }
 
-        // Call the onStop method of the super class
+        // 调用父类的onStop方法
         super.onStop(interruptTask);
 
-        // Pop the behaviour from the stack
+        // 从堆栈中弹出行为
         mod.getBehaviour().pop();
     }
 
     /**
-     * This method is called periodically to perform crafting-related tasks.
+     * 定期调用此方法执行与合成相关的任务
      *
-     * @return The next task to execute.
+     * @return 要执行的下一个任务
      */
     @Override
     protected Task onTick() {
         AltoClef mod = AltoClef.getInstance();
 
-        // Avoid breaking crafting tables
+        // 避免破坏工作台
         List<BlockPos> craftingTablePositions = mod.getBlockScanner().getKnownLocations(Blocks.CRAFTING_TABLE);
         for (BlockPos craftingTablePos : craftingTablePositions) {
             mod.getBehaviour().avoidBlockBreaking(craftingTablePos);
         }
 
-        // Check if the player inventory is open and the cursor slot is empty
+        // 检查玩家背包是否打开且光标槽为空
         if (StorageHelper.isPlayerInventoryOpen() && StorageHelper.getItemStackInCursorSlot().isEmpty()) {
-            // Get the item in the craft output slot
+            // 获取合成输出槽中的物品
             Item outputItem = StorageHelper.getItemStackInSlot(PlayerSlot.CRAFT_OUTPUT_SLOT).getItem();
-            // Check if the output item matches any of the targets and the target count is not reached
+            // 检查输出物品是否匹配任何目标且目标数量未达到
             for (RecipeTarget target : _targets) {
                 if (target.getOutputItem() == outputItem && mod.getItemStorage().getItemCount(target.getOutputItem()) < target.getTargetCount()) {
                     return new ReceiveCraftingOutputSlotTask(PlayerSlot.CRAFT_OUTPUT_SLOT, target.getTargetCount());
@@ -315,17 +316,17 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
             }
         }
 
-        // Check if we need to collect items and the collect task is not finished
+        // 检查是否需要收集物品且收集任务未完成
         if (_collect && !_collectTask.isFinished() && !StorageHelper.hasRecipeMaterialsOrTarget(mod, _targets)) {
             return _collectTask;
         }
 
-        // Reset the craft reset timer if the container is not open
+        // 如果容器未打开，则重置合成重置计时器
         if (!isContainerOpen(mod)) {
             _craftResetTimer.reset();
         }
 
-        // Check if there is any inaccessible item in the recipes and move it to the inventory
+        // 检查配方中是否有任何无法访问的物品并将其移动到背包
         if (!thisOrChildSatisfies(task -> task instanceof CraftInInventoryTask)) {
             for (RecipeTarget target : _targets) {
                 for (int slot = 0; slot < target.getRecipe().getSlotCount(); ++slot) {
@@ -337,32 +338,32 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
             }
         }
 
-        // Call the parent method
+        // 调用父类方法
         return super.onTick();
     }
 
     /**
-     * Checks if the given DoStuffInContainerTask is equal to this task.
+     * 检查给定的DoStuffInContainerTask是否等于此任务
      *
-     * @param other The other DoStuffInContainerTask to compare.
-     * @return True if the tasks are equal, False otherwise.
+     * @param other 要比较的其他DoStuffInContainerTask
+     * @return 如果任务相等则返回True，否则返回False
      */
     @Override
     protected boolean isSubTaskEqual(DoStuffInContainerTask other) {
-        // Check if the other task is an instance of DoCraftInTableTask
+        // 检查其他任务是否为DoCraftInTableTask的实例
         if (other instanceof DoCraftInTableTask task) {
-            // Compare the targets arrays of the two tasks
+            // 比较两个任务的目标数组
             return Arrays.equals(task._targets, _targets);
         }
-        // The other task is not an instance of DoCraftInTableTask, so they are not equal
+        // 其他任务不是DoCraftInTableTask的实例，因此它们不相等
         return false;
     }
 
     /**
-     * Checks if the container is open.
+     * 检查容器是否已打开
      *
-     * @param mod The AltoClef mod instance.
-     * @return True if the container is open, false otherwise.
+     * @param mod AltoClef模组实例
+     * @return 如果容器已打开则返回True，否则返回false
      */
     @Override
     protected boolean isContainerOpen(AltoClef mod) {
@@ -370,36 +371,36 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
     }
 
     /**
-     * Executes the container subtask.
+     * 执行容器子任务
      *
-     * @param mod The AltoClef mod instance.
-     * @return The subtask to be executed.
+     * @param mod AltoClef模组实例
+     * @return 要执行的子任务
      */
     @Override
     protected Task containerSubTask(AltoClef mod) {
-        // Calculate the interval based on the container item move delay and a bonus duration
+        // 根据容器物品移动延迟和额外持续时间计算间隔
         float interval = mod.getModSettings().getContainerItemMoveDelay() * 10 + CRAFT_RESET_TIMER_BONUS_SECONDS;
         _craftResetTimer.setInterval(interval);
 
-        // If the craft reset timer has elapsed, return a TimeoutWanderTask
+        // 如果合成重置计时器已超时，则返回TimeoutWanderTask
         if (_craftResetTimer.elapsed()) {
             return new TimeoutWanderTask(5);
         }
 
-        // Iterate through each target recipe
+        // 遍历每个目标配方
         for (RecipeTarget target : _targets) {
-            // Check if the output item count meets the target count
+            // 检查输出物品数量是否达到目标数量
             if (mod.getItemStorage().getItemCount(target.getOutputItem()) >= target.getTargetCount()) {
                 continue;
             }
 
-            // Get the recipe to send based on the target recipe and output item
+            // 根据目标配方和输出物品获取要发送的配方
             Optional<WrappedRecipeEntry> recipeToSend = JankCraftingRecipeMapping.getMinecraftMappedRecipe(target.getRecipe(), target.getOutputItem());
 
-            // Get the client player entity
+            // 获取客户端玩家实体
             ClientPlayerEntity player = MinecraftClient.getInstance().player;
 
-            // If crafting book is enabled, the recipe to send exists, and the player has the recipe in their recipe book, return a CraftGenericWithRecipeBooksTask
+            // 如果启用了合成书，存在要发送的配方，且玩家的合成书中包含该配方，则返回CraftGenericWithRecipeBooksTask
             if (mod.getModSettings().shouldUseCraftingBookToCraft() && recipeToSend.isPresent()) {
                 assert player != null;
                 if (player.getRecipeBook().contains(recipeToSend.get().id())) {
@@ -407,7 +408,7 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
                 }
             }
 
-            // Return a CraftGenericManuallyTask by default
+            // 默认返回CraftGenericManuallyTask
             return new CraftGenericManuallyTask(target);
         }
 
@@ -415,63 +416,63 @@ class DoCraftInTableTask extends DoStuffInContainerTask {
     }
 
     /**
-     * Checks if the specified mod is finished.
+     * 检查指定的模组是否已完成
      *
-     * @return True if the mod is finished, false otherwise.
+     * @return 如果模组已完成则返回True，否则返回false
      */
     @Override
     public boolean isFinished() {
-        // Check if the craft count is greater than or equal to the number of targets
+        // 检查合成计数是否大于或等于目标数量
         return _craftCount >= _targets.length;
     }
 
     /**
-     * Returns the cost to make a new AltoClef mod.
+     * 返回制作新AltoClef模组的成本
      *
-     * @param mod The AltoClef mod instance.
-     * @return The cost to make a new AltoClef mod.
+     * @param mod AltoClef模组实例
+     * @return 制作新AltoClef模组的成本
      */
     @Override
     protected double getCostToMakeNew(AltoClef mod) {
-        // Get the nearest crafting table.
+        // 获取最近的工作台
         Optional<BlockPos> closestCraftingTable = mod.getBlockScanner().getNearestBlock(Blocks.CRAFTING_TABLE);
 
-        // If a crafting table is within 40 blocks of the player, return positive infinity.
+        // 如果工作台在玩家40格范围内，则返回正无穷大
         if (closestCraftingTable.isPresent() && closestCraftingTable.get().isWithinDistance(mod.getPlayer().getPos(), 40)) {
             return Double.POSITIVE_INFINITY;
         }
 
-        // If the mod has logs or enough planks, return a cost of 10.
+        // 如果模组有原木或足够的木板，则返回成本10
         if (mod.getItemStorage().hasItem(ItemHelper.LOG) || mod.getItemStorage().getItemCount(ItemHelper.PLANKS) >= 4) {
             return 10;
         }
 
-        // Otherwise, return a cost of 100.
+        // 否则返回成本100
         return 100;
     }
 
     /**
-     * Returns an array of materials.
+     * 返回材料数组
      *
-     * @return the array of materials
+     * @return 材料数组
      */
     private Item[] getMaterialsArray() {
         List<Item> result = new ArrayList<>();
 
-        // Iterate over each target
+        // 遍历每个目标
         for (RecipeTarget target : _targets) {
-            // Iterate over each slot in the recipe
+            // 遍历配方中的每个槽位
             for (int i = 0; i < target.getRecipe().getSlotCount(); ++i) {
                 ItemTarget materialTarget = target.getRecipe().getSlot(i);
-                // Check if the material target is not null and has matches
+                // 检查材料目标是否不为null且有匹配项
                 if (materialTarget != null && materialTarget.getMatches() != null) {
-                    // Add all the matches to the result list
+                    // 将所有匹配项添加到结果列表中
                     Collections.addAll(result, materialTarget.getMatches());
                 }
             }
         }
 
-        // Convert the result list to an array and return it
+        // 将结果列表转换为数组并返回
         return result.toArray(new Item[0]);
     }
 

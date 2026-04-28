@@ -19,11 +19,14 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 
+/**
+ * 掠夺容器任务 - 从指定容器中掠夺特定物品
+ */
 public class LootContainerTask extends Task {
-    public final BlockPos chest;
-    public final List<Item> targets = new ArrayList<>();
-    private final Predicate<ItemStack> check;
-    private boolean weDoneHere = false;
+    public final BlockPos chest; // 容器位置
+    public final List<Item> targets = new ArrayList<>(); // 目标物品列表
+    private final Predicate<ItemStack> check; // 物品检查条件
+    private boolean weDoneHere = false; // 是否已完成
 
     public LootContainerTask(BlockPos chestPos, List<Item> items) {
         chest = chestPos;
@@ -42,6 +45,7 @@ public class LootContainerTask extends Task {
         AltoClef mod = AltoClef.getInstance();
 
         mod.getBehaviour().push();
+        // 保护目标物品，防止在掠夺过程中被丢弃
         for (Item item : targets) {
             if (!mod.getBehaviour().isProtected(item)) {
                 mod.getBehaviour().addProtectedItems(item);
@@ -52,7 +56,7 @@ public class LootContainerTask extends Task {
     @Override
     protected Task onTick() {
         if (!ContainerType.screenHandlerMatches(ContainerType.CHEST)) {
-            setDebugState("Interact with container");
+            setDebugState("与容器交互");
             return new InteractWithBlockTask(chest);
         }
         AltoClef mod = AltoClef.getInstance();
@@ -61,11 +65,11 @@ public class LootContainerTask extends Task {
         if (!cursor.isEmpty()) {
             Optional<Slot> toFit = mod.getItemStorage().getSlotThatCanFitInPlayerInventory(cursor, false);
             if (toFit.isPresent()) {
-                setDebugState("Putting cursor in inventory");
+                setDebugState("将光标物品放入背包");
                 mod.getSlotHandler().clickSlot(toFit.get(), 0, SlotActionType.PICKUP);
                 return null;
             } else {
-                setDebugState("Ensuring space");
+                setDebugState("确保存储空间");
                 return new EnsureFreeInventorySlotTask();
             }
         }
@@ -74,7 +78,7 @@ public class LootContainerTask extends Task {
             weDoneHere = true;
             return null;
         }
-        setDebugState("Looting items: " + targets);
+        setDebugState("掠夺物品: " + targets);
         mod.getSlotHandler().clickSlot(optimal.get(), 0, SlotActionType.PICKUP);
         return null;
     }
@@ -91,7 +95,7 @@ public class LootContainerTask extends Task {
                 mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
             }
             Optional<Slot> garbage = StorageHelper.getGarbageSlot(mod);
-            // Try throwing away cursor slot if it's garbage
+            // 如果光标物品是垃圾，尝试丢弃
             garbage.ifPresent(slot -> mod.getSlotHandler().clickSlot(slot, 0, SlotActionType.PICKUP));
             mod.getSlotHandler().clickSlot(Slot.UNDEFINED, 0, SlotActionType.PICKUP);
         } else {
@@ -127,6 +131,6 @@ public class LootContainerTask extends Task {
 
     @Override
     protected String toDebugString() {
-        return "Looting a container";
+        return "掠夺容器";
     }
 }
