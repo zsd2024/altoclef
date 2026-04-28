@@ -1,4 +1,4 @@
-name: Java CI with Gradle
+name: 使用 Gradle 的 Java CI
 
 on:
   push:
@@ -11,56 +11,67 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # 主版本（用于 mainProject 文件）
       LATEST_VERSION: "1.21"
+
+      # 是否包含 devlibs
       INCLUDE_DEVLIBS: "true"
-      
-      # Warning: Don't add too many versions because it takes a lot of space in the artifacts,
-      # and I've gotten an email from GitHub about it so please just don't.
+
+      # 注意：不要添加太多版本，否则 artifacts 会非常大，
+      # GitHub 会发邮件警告空间占用。
       VERSIONS_TO_BUILD: "1.16.5 1.17.1 1.18.2 1.20.4 1.21"
 
     steps:
-      - uses: actions/checkout@v2
+      - name: 检出仓库
+        uses: actions/checkout@v3
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v2
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v3
         with:
           java-version: '21'
           distribution: 'adopt'
 
-      - name: Grant execute permission for gradlew
+      - name: 赋予 gradlew 可执行权限
         run: chmod +x gradlew
 
-      - name: Create versions directory and mainProject
+      - name: 创建 versions 目录并写入 mainProject
         run: |
           mkdir -p ./versions
           if [ ! -f ./versions/mainProject ]; then
-            echo $LATEST_VERSION > ./versions/mainProject
+            echo "$LATEST_VERSION" > ./versions/mainProject
           fi
 
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: 使用 Gradle 构建
+        run: ./gradlew build --stacktrace
 
-      - name: Create artifact directory structure
+      - name: 创建 artifact 目录结构并复制构建产物
         run: |
           mkdir -p artifacts
           for version in $VERSIONS_TO_BUILD; do
+            # libs
             mkdir -p artifacts/$version/libs
-            cp ./versions/$version/build/libs/*.jar artifacts/$version/libs/
+            if ls ./versions/$version/build/libs/*.jar 1> /dev/null 2>&1; then
+              cp ./versions/$version/build/libs/*.jar artifacts/$version/libs/
+            fi
+
+            # devlibs（可选）
             if [ "$INCLUDE_DEVLIBS" = "true" ]; then
               mkdir -p artifacts/$version/devlibs
-              cp ./versions/$version/build/devlibs/*.jar artifacts/$version/devlibs/
+              if ls ./versions/$version/build/devlibs/*.jar 1> /dev/null 2>&1; then
+                cp ./versions/$version/build/devlibs/*.jar artifacts/$version/devlibs/
+              fi
             fi
           done
 
-      - name: Compute hashes
+      - name: 计算 SHA256 哈希
         run: |
           touch artifacts/hashes.txt
-          for jar in $(find artifacts -name '*.jar'); do
-            sha256sum $jar >> artifacts/hashes.txt
+          find artifacts -name '*.jar' -type f | while read jar; do
+            sha256sum "$jar" >> artifacts/hashes.txt
           done
 
-      - name: Archive Artifacts
-        uses: actions/upload-artifact@v2
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
         with:
-          name: Artifacts
+          name: 构建产物
           path: artifacts
