@@ -1,13 +1,13 @@
 package adris.altoclef.tasksystem;
 
 /**
- * Lets a task declare that it's parent can NOT interrupt itself, and that this task MUST keep executing.
+ * 允许任务声明其父任务不能中断自身，且此任务必须继续执行。
  */
 public interface ITaskCanForce {
 
     /**
-     * @param interruptingCandidate This task will try to interrupt our current task.
-     * @return Whether the task should forcefully keep going, even when the parent decides it shouldn't
+     * @param interruptingCandidate 尝试中断当前任务的任务。
+     * @return 即使父任务决定不应继续，是否仍应强制任务继续执行。
      */
     boolean shouldForce(Task interruptingCandidate);
 }

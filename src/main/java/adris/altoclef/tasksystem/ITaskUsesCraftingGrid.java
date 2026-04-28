@@ -1,11 +1,10 @@
 package adris.altoclef.tasksystem;
 
 /**
- * Some tasks (mainly tasks that open containers) will break if they don't require
- * that the 2x2 crafting grid is empty. Tasks which implement this interface
- * require implementers to maintain an empty crafting grid.
+ * 某些任务（主要是打开容器的任务）如果不确保2x2合成网格为空就会出错。
+ * 实现此接口的任务要求实现者保持合成网格为空。
  * <p>
- * This interface let's a task declare that it MUST have certain slots clear before it can execute.
+ * 此接口允许任务声明在执行前必须清空特定槽位。
  */
 public interface ITaskUsesCraftingGrid {
 

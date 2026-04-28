@@ -1,9 +1,9 @@
 package adris.altoclef.tasksystem;
 
 /**
- * If this is found on a task, it will interrupt tasks that require grounded.
+ * 如果任务实现此接口，它将中断需要接地状态的任务。
  * <p>
- * Mainly used for the MLG Bucket task.
+ * 主要用于MLG水桶任务。
  */
 public interface ITaskOverridesGrounded {
 }

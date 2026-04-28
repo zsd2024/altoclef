@@ -4,9 +4,9 @@ import adris.altoclef.AltoClef;
 import net.minecraft.client.network.ClientPlayerEntity;
 
 /**
- * Some tasks may mess up royally if we interrupt them while mid air.
- * For instance, if we're doing some parkour and a baritone task is stopped,
- * the player will fall to whatever is below them, perhaps their death.
+ * 某些任务如果在空中被中断可能会导致严重问题。
+ * 例如，如果我们在进行跑酷时Baritone任务被停止，
+ * 玩家会掉落到下方的任何地方，可能导致死亡。
  */
 public interface ITaskRequiresGrounded extends ITaskCanForce {
     @Override
