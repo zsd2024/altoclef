@@ -10,23 +10,42 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 躲避投射物目标工具类
+ * 用于定义一个躲避投射物（如箭矢）的目标，确保机器人避开危险区域
+ */
 public class GoalDodgeProjectiles implements Goal {
 
     private static final double Y_SCALE = 0.3f;
 
+    /** AltoClef主模块实例 */
     private final AltoClef mod;
 
+    /** 水平方向的安全距离 */
     private final double distanceHorizontal;
+    /** 垂直方向的安全距离 */
     private final double distanceVertical;
 
+    /** 缓存的投射物列表 */
     private final List<CachedProjectile> cachedProjectiles = new ArrayList<>();
 
+    /**
+     * 构造函数
+     * @param mod AltoClef主模块实例
+     * @param distanceHorizontal 水平方向的安全距离
+     * @param distanceVertical 垂直方向的安全距离
+     */
     public GoalDodgeProjectiles(AltoClef mod, double distanceHorizontal, double distanceVertical) {
         this.mod = mod;
         this.distanceHorizontal = distanceHorizontal;
         this.distanceVertical = distanceVertical;
     }
 
+    /**
+     * 检查投射物是否无效
+     * @param projectile 投射物对象
+     * @return 如果投射物无效返回true，否则返回false
+     */
     private static boolean isInvalidProjectile(CachedProjectile projectile) {
         //noinspection RedundantIfStatement
         if (projectile == null) return true;
@@ -52,8 +71,8 @@ public class GoalDodgeProjectiles implements Goal {
 
                         if (isHitCloseEnough(hit, p)) return false;
                     } catch (Exception e) {
-                        Debug.logWarning("Weird exception caught while checking for goal: " + e.getMessage());
-                        /// ????? No clue why a nullptrexception happens here.
+                        Debug.logWarning("检查目标时捕获到异常: " + e.getMessage());
+                        /// ????? 不清楚为什么会在这里发生空指针异常。
                     }
                     //double sqFromMob = creepuh.squaredDistanceTo(x, y, z);
                     //if (sqFromMob < _distance*_distance) return false;
@@ -67,7 +86,7 @@ public class GoalDodgeProjectiles implements Goal {
     @Override
     public double heuristic(int x, int y, int z) {
         Vec3d p = new Vec3d(x, y, z);
-        // The HIGHER the cost, the better (total distance from arrows)
+        // 成本越高越好（远离箭矢的总距离）
         double costFactor = 0;
 
         List<CachedProjectile> projectiles = getProjectiles();
@@ -93,6 +112,12 @@ public class GoalDodgeProjectiles implements Goal {
         return -1 * costFactor;
     }
 
+    /**
+     * 检查命中点是否足够接近
+     * @param hit 命中点
+     * @param to 目标点
+     * @return 如果足够接近返回true，否则返回false
+     */
     private boolean isHitCloseEnough(Vec3d hit, Vec3d to) {
         Vec3d delta = to.subtract(hit);
         double horizontalSquared = delta.x * delta.x + delta.z * delta.z;
@@ -100,6 +125,10 @@ public class GoalDodgeProjectiles implements Goal {
         return horizontalSquared < distanceHorizontal * distanceHorizontal && vertical < distanceVertical;
     }
 
+    /**
+     * 获取当前所有的投射物
+     * @return 投射物列表
+     */
     private List<CachedProjectile> getProjectiles() {
         return mod.getEntityTracker().getProjectiles();
     }

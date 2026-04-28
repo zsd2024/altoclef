@@ -10,17 +10,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Defines an item and a count.
+ * 物品目标工具类
+ * 定义一个物品及其数量。
  * <p>
- * Multiple Minecraft Items can meet the criteria of an "item" (ex. "wooden planks" can be satisfied by oak, acacia, spruce, jungle, etc.)
+ * 多个Minecraft物品可以满足一个"物品"的标准（例如，"木板"可以由橡木、金合欢木、云杉木、丛林木等满足）
  */
 public class ItemTarget {
 
     /**
-     * Converts an array of `Item` objects into an array of `ItemTarget` objects.
+     * 将`Item`对象数组转换为`ItemTarget`对象数组。
      *
-     * @param items the array of `Item` objects to convert
-     * @return the array of `ItemTarget` objects
+     * @param items 要转换的`Item`对象数组
+     * @return `ItemTarget`对象数组
      */
     public static ItemTarget[] of(Item... items) {
         return Arrays.stream(items).map(ItemTarget::new).toArray(ItemTarget[]::new);
@@ -28,40 +29,77 @@ public class ItemTarget {
 
     private static final int BASICALLY_INFINITY = 99999999;
 
+    /** 空物品目标常量 */
     public static ItemTarget EMPTY = new ItemTarget(new Item[0], 0);
+    /** 可匹配的物品数组 */
     private Item[] itemMatches;
+    /** 目标数量 */
     private final int targetCount;
+    /** 目录名称（如果适用） */
     private String catalogueName = null;
+    /** 是否为无限数量 */
     private boolean infinite = false;
 
+    /**
+     * 构造函数
+     * @param items 可匹配的物品数组
+     * @param targetCount 目标数量
+     */
     public ItemTarget(Item[] items, int targetCount) {
         itemMatches = items;
         this.targetCount = targetCount;
         infinite = false;
     }
 
+    /**
+     * 构造函数（使用目录名称）
+     * @param catalogueName 目录名称
+     * @param targetCount 目标数量
+     */
     public ItemTarget(String catalogueName, int targetCount) {
         this.catalogueName = catalogueName;
         itemMatches = TaskCatalogue.getItemMatches(catalogueName);
         this.targetCount = targetCount;
     }
 
+    /**
+     * 构造函数（使用目录名称，默认数量为1）
+     * @param catalogueName 目录名称
+     */
     public ItemTarget(String catalogueName) {
         this(catalogueName, 1);
     }
 
+    /**
+     * 构造函数（单个物品）
+     * @param item 物品
+     * @param targetCount 目标数量
+     */
     public ItemTarget(Item item, int targetCount) {
         this(new Item[]{item}, targetCount);
     }
 
+    /**
+     * 构造函数（多个物品，默认数量为1）
+     * @param items 物品数组
+     */
     public ItemTarget(Item... items) {
         this(items, 1);
     }
 
+    /**
+     * 构造函数（单个物品，默认数量为1）
+     * @param item 物品
+     */
     public ItemTarget(Item item) {
         this(item, 1);
     }
 
+    /**
+     * 复制构造函数
+     * @param toCopy 要复制的物品目标
+     * @param newCount 新的数量
+     */
     public ItemTarget(ItemTarget toCopy, int newCount) {
         if (toCopy.itemMatches != null) {
             itemMatches = new Item[toCopy.itemMatches.length];
@@ -72,10 +110,20 @@ public class ItemTarget {
         infinite = toCopy.infinite;
     }
 
+    /**
+     * 判断物品目标是否为空或null
+     * @param target 要检查的物品目标
+     * @return 如果为空或null返回true，否则返回false
+     */
     public static boolean nullOrEmpty(ItemTarget target) {
         return target == null || target == EMPTY;
     }
 
+    /**
+     * 获取多个物品目标的所有匹配物品
+     * @param targets 物品目标数组
+     * @return 所有匹配的物品数组
+     */
     public static Item[] getMatches(ItemTarget... targets) {
         Set<Item> result = new HashSet<>();
         for (ItemTarget target : targets) {
@@ -84,15 +132,27 @@ public class ItemTarget {
         return result.toArray(Item[]::new);
     }
 
+    /**
+     * 设置为无限数量
+     * @return 当前实例（用于链式调用）
+     */
     public ItemTarget infinite() {
         infinite = true;
         return this;
     }
 
+    /**
+     * 获取可匹配的物品数组
+     * @return 可匹配的物品数组
+     */
     public Item[] getMatches() {
         return itemMatches != null ? itemMatches : new Item[0];
     }
 
+    /**
+     * 获取目标数量
+     * @return 目标数量（如果是无限则返回极大值）
+     */
     public int getTargetCount() {
         if (infinite) {
             return BASICALLY_INFINITY;
@@ -100,6 +160,11 @@ public class ItemTarget {
         return targetCount;
     }
 
+    /**
+     * 判断指定物品是否匹配
+     * @param item 要检查的物品
+     * @return 如果匹配返回true，否则返回false
+     */
     public boolean matches(Item item) {
         if (itemMatches != null) {
             for (Item match : itemMatches) {
@@ -110,10 +175,18 @@ public class ItemTarget {
         return false;
     }
 
+    /**
+     * 判断是否为目录物品
+     * @return 如果是目录物品返回true，否则返回false
+     */
     public boolean isCatalogueItem() {
         return catalogueName != null;
     }
 
+    /**
+     * 获取目录名称
+     * @return 目录名称
+     */
     public String getCatalogueName() {
         return catalogueName;
     }
@@ -143,6 +216,10 @@ public class ItemTarget {
         return false;
     }
 
+    /**
+     * 判断是否为空
+     * @return 如果为空返回true，否则返回false
+     */
     public boolean isEmpty() {
         return itemMatches == null || itemMatches.length == 0;
     }
@@ -152,7 +229,7 @@ public class ItemTarget {
 
         StringBuilder result = new StringBuilder();
         if (isEmpty()) {
-            result.append("(empty)");
+            result.append("(空)");
         } else if (isCatalogueItem()) {
             result.append(catalogueName);
         } else {
@@ -161,7 +238,7 @@ public class ItemTarget {
             if (itemMatches != null) {
                 for (Item item : itemMatches) {
                     if (item == null) {
-                        result.append("(null??)");
+                        result.append("(空??)");
                     } else {
                         result.append(ItemHelper.trimItemName(item.getTranslationKey()));
                     }
@@ -175,7 +252,7 @@ public class ItemTarget {
         if (!infinite && !isEmpty() && targetCount > 1) {
             result.append(" x ").append(targetCount);
         } else if (infinite) {
-            result.append(" x infinity");
+            result.append(" x 无限");
         }
 
         return result.toString();

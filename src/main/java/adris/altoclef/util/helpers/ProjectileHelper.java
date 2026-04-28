@@ -9,7 +9,7 @@ import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Projectile motion math functions
+ * 投射物帮助器 - 投射物运动数学函数
  */
 public class ProjectileHelper {
 

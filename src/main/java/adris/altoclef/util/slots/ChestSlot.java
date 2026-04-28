@@ -1,13 +1,29 @@
 package adris.altoclef.util.slots;
 
+/**
+ * 箱子槽位类
+ * 用于处理箱子容器中的槽位映射和管理，支持普通箱子和大型箱子（双箱）
+ */
 public class ChestSlot extends Slot {
 
+    /** 是否为大型箱子（双箱） */
     private final boolean big;
 
+    /**
+     * 构造箱子槽位对象
+     * @param slot 槽位索引
+     * @param big 是否为大型箱子
+     */
     public ChestSlot(int slot, boolean big) {
         this(slot, big, false);
     }
 
+    /**
+     * 构造箱子槽位对象
+     * @param slot 槽位索引
+     * @param big 是否为大型箱子
+     * @param inventory 是否为物品栏槽位
+     */
     public ChestSlot(int slot, boolean big, boolean inventory) {
         super(slot, inventory);
         this.big = big;
@@ -32,6 +48,6 @@ public class ChestSlot extends Slot {
 
     @Override
     protected String getName() {
-        return "Chest";
+        return "箱子";
     }
 }

@@ -18,7 +18,7 @@ import net.minecraft.util.DyeColor;
 import java.util.*;
 
 /**
- * Helper functions and definitions for useful groupings of items
+ * 物品帮助器 - 提供物品分组和相关操作的辅助函数和定义
  */
 public class ItemHelper {
     public static final Item[] SAPLINGS = new Item[]{Items.OAK_SAPLING, Items.SPRUCE_SAPLING, Items.BIRCH_SAPLING,

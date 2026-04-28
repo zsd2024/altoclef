@@ -36,7 +36,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Helper functions for interpreting containers/slots/windows/inventory
+ * 用于解释容器/槽位/窗口/库存的辅助函数
  */
 @SuppressWarnings("rawtypes")
 public class StorageHelper {

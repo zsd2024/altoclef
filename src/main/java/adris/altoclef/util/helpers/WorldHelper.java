@@ -36,7 +36,7 @@ import net.minecraft.registry.entry.RegistryEntry;
 import java.util.*;
 
 /**
- * Super useful helper functions for getting information about the world.
+ * 获取世界信息的超级实用辅助函数
  */
 public interface WorldHelper {
 

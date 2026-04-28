@@ -3,9 +3,9 @@ package adris.altoclef.util.helpers;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Math utilities
+ * 数学帮助器 - 数学工具类
  * <p>
- * I'm not British. I swear. I just don't want it to conflict with minecraft's `MathHelper`.
+ * 我不是英国人。我发誓。我只是不想与Minecraft的`MathHelper`冲突。
  */
 public interface MathsHelper {
 

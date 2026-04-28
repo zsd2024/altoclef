@@ -9,10 +9,14 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
+/**
+ * 槽位屏幕映射类
+ * 用于根据当前打开的屏幕类型，将槽位索引映射到对应的槽位对象
+ */
 @SuppressWarnings("rawtypes")
 public class SlotScreenMapping {
 
-    // Order here matters as whoever returns "true" in the predicate first is picked.
+    // 映射条目列表，顺序很重要：第一个predicate返回true的条目会被选中
     private static final List<SlotScreenMappingEntry> _classList = List.of(
             e(CraftingTableSlot.class, screen -> screen instanceof CraftingScreen, CraftingTableSlot::new),
             e(FurnaceSlot.class, screen -> screen instanceof AbstractFurnaceScreen, FurnaceSlot::new),
@@ -21,10 +25,17 @@ public class SlotScreenMapping {
             e(SmithingTableSlot.class, screen -> screen instanceof SmithingScreen, SmithingTableSlot::new),
             e(BrewingStandSlot.class, screen -> screen instanceof BrewingStandScreen, BrewingStandSlot::new),
             e(ChestSlot.class, screen -> screen instanceof GenericContainerScreen, ChestSlot::new),
-            e(PlayerSlot.class, screen -> true, PlayerSlot::new), // Order matters, leave this BEFORE the BACK!
-            e(CursorSlot.class, screen -> true, (slot, inv) -> CursorSlot.SLOT) // Order matters, leave this in the BACK!
+            e(PlayerSlot.class, screen -> true, PlayerSlot::new), // 顺序很重要，这个必须放在倒数第二位！
+            e(CursorSlot.class, screen -> true, (slot, inv) -> CursorSlot.SLOT) // 顺序很重要，这个必须放在最后！
     );
 
+    /**
+     * 检查指定槽位类型的屏幕是否已打开
+     *
+     * @param slotType 槽位类型类
+     * @return 如果该类型的屏幕已打开则返回true，否则返回false
+     * @throws NotImplementedException 如果槽位类型未在映射中注册
+     */
     @SuppressWarnings("unchecked")
     public static boolean isScreenOpen(Class slotType) {
         Screen screen = MinecraftClient.getInstance().currentScreen;
@@ -35,9 +46,17 @@ public class SlotScreenMapping {
                 }
             }
         }
-        throw new NotImplementedException("Slot type class not registered in SlotScreenMapping: " + slotType + ". Please register! (current screen = " + screen + ")");
+        throw new NotImplementedException("槽位类型类未在SlotScreenMapping中注册: " + slotType + ". 请注册! (当前屏幕 = " + screen + ")");
     }
 
+    /**
+     * 根据当前屏幕获取对应的槽位对象
+     *
+     * @param slot      槽位索引
+     * @param inventory 是否为库存槽位
+     * @return 对应的槽位对象
+     * @throws NotImplementedException 如果没有找到匹配的屏幕类型（理论上不应该发生）
+     */
     public static Slot getFromScreen(int slot, boolean inventory) {
         Screen screen = MinecraftClient.getInstance().currentScreen;
         if (!_classList.isEmpty()) {
@@ -47,14 +66,26 @@ public class SlotScreenMapping {
                 }
             }
         }
-        throw new NotImplementedException("We should never get here, _classList should be filled with a predicate that always returns true at the bottom (for PlayerSlot & CursorSlot)");
+        throw new NotImplementedException("我们不应该到达这里，_classList应该在底部包含一个始终返回true的predicate（用于PlayerSlot和CursorSlot）");
     }
 
 
+    /**
+     * 创建槽位屏幕映射条目
+     *
+     * @param type     槽位类型
+     * @param inScreen 屏幕类型判断谓词
+     * @param getSlot  槽位创建函数
+     * @return 槽位屏幕映射条目
+     */
     private static SlotScreenMappingEntry e(Class type, Predicate<Screen> inScreen, BiFunction<Integer, Boolean, Slot> getSlot) {
         return new SlotScreenMappingEntry(type, inScreen, getSlot);
     }
 
+    /**
+     * 槽位屏幕映射条目内部类
+     * 存储槽位类型、屏幕判断谓词和槽位创建函数
+     */
     static class SlotScreenMappingEntry {
         public Class type;
         public Predicate<Screen> inScreen;

@@ -28,7 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Helper functions to interpret and change our player's look direction
+ * 视角帮助器 - 提供解释和改变玩家视角方向的辅助函数
  */
 public interface LookHelper {
     /**
