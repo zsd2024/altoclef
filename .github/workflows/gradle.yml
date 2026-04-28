@@ -36,7 +36,7 @@ jobs:
       #     fi
 
       - name: 使用 Gradle 构建
-        run: ./gradlew build --stacktrace
+        run: ./gradlew build --info
 
       - name: 创建 artifact 目录结构并复制构建产物
         run: |
