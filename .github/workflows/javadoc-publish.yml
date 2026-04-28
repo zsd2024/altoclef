@@ -11,12 +11,12 @@ jobs:
 
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # 保留完整历史，便于部署
+          fetch-depth: 0
 
       - name: 安装 JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: adopt
@@ -28,7 +28,7 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: javadoc              # 部署到 javadoc 分支
-          folder: build/docs/javadoc   # Javadoc 输出目录
-          target-folder: javadoc       # 分支中的目标目录
-          clean: true                  # 清理旧文件
+          branch: javadoc
+          folder: build/docs/javadoc
+          target-folder: javadoc
+          clean: true
