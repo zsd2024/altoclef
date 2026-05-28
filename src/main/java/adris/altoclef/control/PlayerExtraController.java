@@ -20,18 +20,18 @@ public class PlayerExtraController {
     // 挖掘进度
     private double blockBreakProgress;
 
-        /**
+    /**
      * 构造函数，初始化玩家额外控制器
      * @param mod AltoClef主模块实例
      */
     public PlayerExtraController(AltoClef mod) {
         this.mod = mod;
 
-        EventBus.subscribe(BlockBreakingEvent.class, evt -> onBlockBreak(evt.blockPos, evt.progress));
+        EventBus.subscribe(BlockBreakingEvent.class, evt -> onBlockBreak(evt.pos, evt.progress));
         EventBus.subscribe(BlockBreakingCancelEvent.class, evt -> onBlockStopBreaking());
     }
 
-        /**
+    /**
      * 处理方块挖掘事件
      * @param pos 挖掘的方块位置
      * @param progress 挖掘进度
@@ -41,7 +41,7 @@ public class PlayerExtraController {
         blockBreakProgress = progress;
     }
 
-        /**
+    /**
      * 处理停止挖掘方块事件
      */
     private void onBlockStopBreaking() {
@@ -49,7 +49,7 @@ public class PlayerExtraController {
         blockBreakProgress = 0;
     }
 
-        /**
+    /**
      * 获取正在挖掘的方块位置
      * @return 正在挖掘的方块位置，如果未在挖掘则返回null
      */
@@ -57,7 +57,7 @@ public class PlayerExtraController {
         return blockBreakPos;
     }
 
-        /**
+    /**
      * 检查是否正在挖掘方块
      * @return 如果正在挖掘方块返回true，否则返回false
      */
@@ -65,7 +65,7 @@ public class PlayerExtraController {
         return blockBreakPos != null;
     }
 
-        /**
+    /**
      * 获取当前挖掘方块的进度
      * @return 挖掘进度值，范围从0.0到1.0
      */
@@ -73,7 +73,7 @@ public class PlayerExtraController {
         return blockBreakProgress;
     }
 
-        /**
+    /**
      * 检查实体是否在玩家的攻击范围内
      * @param entity 要检查的实体
      * @return 如果实体在范围内返回true，否则返回false
@@ -82,7 +82,7 @@ public class PlayerExtraController {
         return mod.getPlayer().isInRange(entity, mod.getModSettings().getEntityReachRange());
     }
 
-        /**
+    /**
      * 攻击指定实体
      * @param entity 要攻击的实体
      */

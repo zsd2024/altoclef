@@ -1,8 +1,0 @@
--cp
-.:/home/zyk/.tmp/altoclef/src/main/java
--d
-/tmp/classes
-/home/zyk/.tmp/altoclef/src/main/java/adris/altoclef/control/InputControls.java
-/home/zyk/.tmp/altoclef/src/main/java/adris/altoclef/control/KillAura.java
-/home/zyk/.tmp/altoclef/src/main/java/adris/altoclef/control/PlayerExtraController.java
-/home/zyk/.tmp/altoclef/src/main/java/adris/altoclef/control/SlotHandler.java
