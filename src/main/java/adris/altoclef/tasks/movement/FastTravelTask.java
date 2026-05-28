@@ -169,131 +169,26 @@ public class FastTravelTask extends Task {
             如果我们在主世界：
                 如果我们在旅行阈值外且未强制步行：
                     如果我们需要收集额外的打火石和钢（或火焰弹）和钻石镐：
-                        收集
-                    否则
-                        步行
-                否则：
-                    强制步行
-                    步行
-                前往下界
-            如果我们在下界：
-                如果我们正在建造传送门：
-                    继续建造
-                如果我们掉落了钻石镐，捡起它
-                如果我们没有打火石和钢和火焰弹且掉落了任何，捡起它
-                如果我们掉落了黑曜石且少于10个，捡起它
-                如果我们足够接近计算的XZ坐标：
-                    运行
-                    建造传送门
-                前往计算的下界坐标
-            否则（我们在末地，极不可能但也要考虑）
-                前往主世界
-          */
-    }
-
-        switch (WorldHelper.getCurrentDimension()) {
-            case OVERWORLD -> {
-                _attemptToMoveToIdealNetherCoordinateTimeout.reset();
-                // WALK
-                if (_forceOverworldWalking || WorldHelper.inRangeXZ(mod.getPlayer(), target, getOverworldThreshold(mod))) {
-                    _forceOverworldWalking = true;
-                    setDebugState("Walking: We're close enough to our target");
-
-                    if (mod.getBlockScanner().anyFound(Blocks.END_PORTAL_FRAME)) {
-                        setDebugState("Walking to portal");
-                        return new GetToBlockTask(mod.getBlockScanner().getNearestBlock(Blocks.END_PORTAL_FRAME).get());
-                    }
-                    return new GetToBlockTask(target);
-                }
-                // SUPPLIES
-                if (!canBuildPortal || !canLightPortal) {
-                    if (collectPortalMaterialsIfAbsent) {
-                        setDebugState("Collecting portal building materials");
-                        if (!canBuildPortal)
-                            return TaskCatalogue.getItemTask(Items.DIAMOND_PICKAXE, 1);
-                        if (!canLightPortal)
-                            return TaskCatalogue.getItemTask(Items.FLINT_AND_STEEL, 1);
-                    } else {
-                        setDebugState("Walking: We don't have portal building materials");
-                        return new GetToBlockTask(target);
-                    }
-                }
-                // GO TO NETHER
-                return new DefaultGoToDimensionTask(Dimension.NETHER);
-            }
-            case NETHER -> {
-
-                if (!_forceOverworldWalking) {
-                    // After walking a bit, the moment we go back into the overworld, walk again.
-                    Optional<BlockPos> portalEntrance = mod.getMiscBlockTracker().getLastUsedNetherPortal(Dimension.NETHER);
-                    if (portalEntrance.isPresent() && !portalEntrance.get().isWithinDistance(mod.getPlayer().getPos(), 3)) {
-                        _forceOverworldWalking = true;
-                    }
-                }
-
-                // If we're going to the overworld, keep going.
-                if (_goToOverworldTask.isActive() && !_goToOverworldTask.isFinished()) {
-                    setDebugState("Going back to overworld");
-
-                    return _goToOverworldTask;
-                }
-
-                // PICKUP DROPPED STUFF if we need it
-                if (mod.getItemStorage().getItemCount(Items.OBSIDIAN) < 10) {
-                    setDebugState("Making sure we can build our portal");
-                    return TaskCatalogue.getItemTask(Items.OBSIDIAN, 10);
-                }
-                if (!canLightPortal && mod.getEntityTracker().itemDropped(Items.FLINT_AND_STEEL, Items.FIRE_CHARGE)) {
-                    setDebugState("Making sure we can light our portal");
-                    return new PickupDroppedItemTask(new ItemTarget(Items.FLINT_AND_STEEL, Items.FIRE_CHARGE), true);
-                }
-
-                if (WorldHelper.inRangeXZ(mod.getPlayer(), netherTarget, IN_NETHER_CLOSE_ENOUGH_THRESHOLD) &&
-                        mod.getClientBaritone().getPathingBehavior().isSafeToCancel()) {
-                    // If we're precisely at our target XZ or if we've tried long enough
-                    if ((mod.getPlayer().getBlockX() == netherTarget.getX() && mod.getPlayer().getBlockZ() == netherTarget.getZ()) || _attemptToMoveToIdealNetherCoordinateTimeout.elapsed()) {
-                        return _goToOverworldTask;
-                    }
-                }
-
-                _attemptToMoveToIdealNetherCoordinateTimeout.reset();
-                setDebugState("Traveling to ideal coordinates");
-                return new GetToXZTask(netherTarget.getX(), netherTarget.getZ());
-            }
-            case END -> {
-                setDebugState("Why are you running this here?");
-                return new DefaultGoToDimensionTask(Dimension.OVERWORLD);
-            }
-        }
-        throw new NotImplementedException("Unimplemented dimension: " + WorldHelper.getCurrentDimension());
-        /*
-            if we're in the overworld:
-                if we're outside of TRAVEL_THRESHHOLD and NOT forcefully walking:
-                    if we need to collect extra flint & steel (or fire charge) AND a diamond pickaxe:
-                        collect
-                    else
-                        walk
-                else:
-                    force walk
-                    walk
-                GO TO NETHER
-            if we're in the nether:
-
-                if we were building the portal:
-                    keep building
-
-                if we drop a diamond pickaxe, pick it up
-                if we have no flint and steel & fire charge and dropped any, pick it up
-                if we dropped obsidian and have less than 10, pick it up
-
-                if we're close enough to our calculated XZ coordinates:
-                    run
-                    build portal
-                go to calculated nether coordinates
-            else (we're in the end, highly unlikely but may as well)
-                go to overworld
-         */
-
+                         收集
+                     否则
+                         步行
+                 否则：
+                     强制步行
+                     步行
+                 前往下界
+             如果我们在下界：
+                 如果我们正在建造传送门：
+                     继续建造
+                 如果我们掉落了钻石镐，捡起它
+                 如果我们没有打火石和钢和火焰弹且掉落了任何，捡起它
+                 如果我们掉落了黑曜石且少于10个，捡起它
+                 如果我们足够接近计算的XZ坐标：
+                     运行
+                     建造传送门
+                 前往计算的下界坐标
+             否则（我们在末地，极不可能但也要考虑）
+                 前往主世界
+           */
     }
 
     /**

@@ -289,65 +289,6 @@ public class BeatMinecraftTask extends Task {
         addSmeltTasks(mod);
         addCookFoodTasks(mod);
     }
-        }
-
-        ItemStorageTracker itemStorage = mod.getItemStorage();
-
-        gatherResources.add(new MineBlockPriorityTask(
-                ItemHelper.itemsToBlocks(ItemHelper.LOG), ItemHelper.LOG, MiningRequirement.STONE,
-                new DistanceItemPriorityCalculator(1050, 450, 5, 4, 10),
-
-                a -> itemStorage.hasItem(Items.STONE_AXE, Items.IRON_AXE, Items.GOLDEN_AXE, Items.DIAMOND_AXE)
-                        && itemStorage.getItemCount(ItemHelper.LOG) < 5
-        ));
-
-        addOreMiningTasks();
-        addCollectFoodTask(mod);
-
-        // gear
-        addStoneToolsTasks();
-        addPickaxeTasks(mod);
-        addDiamondArmorTasks(mod);
-        addLootChestsTasks(mod);
-        addPickupImportantItemsTask(mod);
-
-        gatherResources.add(new MineBlockPriorityTask(new Block[]{Blocks.GRAVEL}, new Item[]{Items.FLINT}, MiningRequirement.STONE,
-                new DistanceItemPriorityCalculator(17500, 7500, 5, 1, 1),
-                a -> itemStorage.hasItem(Items.STONE_SHOVEL) && !itemStorage.hasItem(Items.FLINT_AND_STEEL)
-        ));
-
-        gatherResources.add(new MineBlockPriorityTask(ItemHelper.itemsToBlocks(ItemHelper.BED), ItemHelper.BED, MiningRequirement.HAND,
-                new DistanceItemPriorityCalculator(25_000, 25_000, 5, getTargetBeds(mod), getTargetBeds(mod))
-        ));
-
-        gatherResources.add(new CraftItemPriorityTask(200, getRecipeTarget(Items.SHIELD),
-                a -> itemStorage.hasItem(Items.IRON_INGOT)
-        ));
-
-        gatherResources.add(new CraftItemPriorityTask(300, mod.getCraftingRecipeTracker().getFirstRecipeTarget(Items.BUCKET, 2),
-                a -> itemStorage.getItemCount(Items.IRON_INGOT) >= 6)
-        );
-
-        gatherResources.add(new CraftItemPriorityTask(100, getRecipeTarget(Items.FLINT_AND_STEEL),
-                a -> itemStorage.hasItem(Items.IRON_INGOT) && itemStorage.hasItem(Items.FLINT)
-        ));
-
-        gatherResources.add(new CraftItemPriorityTask(330, getRecipeTarget(Items.DIAMOND_SWORD), a -> itemStorage.getItemCount(Items.DIAMOND) >= 2 && StorageHelper.miningRequirementMet(MiningRequirement.DIAMOND)));
-        gatherResources.add(new CraftItemPriorityTask(400, getRecipeTarget(Items.GOLDEN_HELMET), a -> itemStorage.getItemCount(Items.GOLD_INGOT) >= 5));
-
-        addSleepTask(mod);
-
-        gatherResources.add(new ActionPriorityTask(a -> {
-            Pair<Task, Double> pair = new Pair<>(TaskCatalogue.getItemTask(Items.WATER_BUCKET, 1), Double.NEGATIVE_INFINITY);
-
-            if (itemStorage.hasItem(Items.WATER_BUCKET) || hasItem(mod, Items.WATER_BUCKET))
-                return pair;
-
-            Optional<BlockPos> optionalPos = mod.getBlockScanner().getNearestBlock(Blocks.WATER);
-            if (optionalPos.isEmpty()) return pair;
-
-            double distance = Math.sqrt(BlockPosVer.getSquaredDistance(optionalPos.get(),mod.getPlayer().getPos()));
-            if (distance > 55) return pair;
 
             pair.setRight(10 / distance * 77.3);
 
