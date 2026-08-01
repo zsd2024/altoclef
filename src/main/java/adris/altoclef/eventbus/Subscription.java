@@ -47,16 +47,3 @@ public class Subscription<T> {
         return shouldDelete;
     }
 }
-
-    public void accept(T event) {
-        callback.accept(event);
-    }
-
-    public void delete() {
-        shouldDelete = true;
-    }
-
-    public boolean shouldDelete() {
-        return shouldDelete;
-    }
-}
