@@ -16,4 +16,3 @@ public class BlockPosSerializer extends AbstractVectorSerializer<BlockPos> {
         return Arrays.asList("" + value.getX(), "" + value.getY(), "" + value.getZ());
     }
 }
-}

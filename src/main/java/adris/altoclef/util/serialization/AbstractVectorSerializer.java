@@ -41,16 +41,3 @@ public abstract class AbstractVectorSerializer<T> extends StdSerializer<T> {
         gen.writeString(String.join(",", parts));
     }
 }
-
-    protected AbstractVectorSerializer(Class<T> vc) {
-        super(vc);
-    }
-
-    protected abstract Collection<String> getParts(T value);
-
-    @Override
-    public void serialize(T value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-        Collection<String> parts = getParts(value);
-        gen.writeString(String.join(",", parts));
-    }
-}
