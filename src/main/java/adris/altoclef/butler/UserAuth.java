@@ -52,12 +52,3 @@ public class UserAuth {
         return true;
     }
 }
-        if (ButlerConfig.getInstance().useButlerWhitelist) {
-            return _whitelist.containsUser(username);
-        }
-
-        // By default accept everyone.
-        return true;
-    }
-
-}

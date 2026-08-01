@@ -106,49 +106,4 @@ public static boolean canCraftItemNow(AltoClef mod, Item item) {
         return true;
     }
 
-            for (Item item : itemTarget.getMatches()) {
-
-                for (ItemStack inventoryStack : inventoryStacks) {
-
-                    // we can use something from inventory to craft it!
-                    // reduce the amount of items available, continue the loop
-                    if (inventoryStack.getItem() == item && inventoryStack.getCount() >= itemTarget.getTargetCount()) {
-                        inventoryStack.setCount(inventoryStack.getCount() - itemTarget.getTargetCount());
-                        continue itemTargetLoop;
-                    }
-                }
-
-            }
-
-            // we didn't find and item in the inventory that we could use right away
-            // now try to recursively call for recipes of the items we need if we find something
-
-            // FIXME this doesnt take counts into consideration, but I dont even think there is a recipe that needs more then one item on a specific slot, so we should be fine
-            for (Item item : itemTarget.getMatches()) {
-                if (!mod.getCraftingRecipeTracker().hasRecipeForItem(item)) continue;
-
-                for (CraftingRecipe newRecipe : mod.getCraftingRecipeTracker().getRecipeForItem(item)) {
-                    List<ItemStack> inventoryStacksCopy = new ArrayList<>(inventoryStacks);
-                    if (canCraftItemNow(mod, inventoryStacksCopy, newRecipe, new HashSet<>(alreadyChecked))) {
-
-                        // this is the inventory we are now left with
-                        inventoryStacks = inventoryStacksCopy;
-
-                        // we crafted something, add it to the available items minus the one we used
-                        ItemStack result = mod.getCraftingRecipeTracker().getRecipeResult(newRecipe);
-                        result.setCount(result.getCount() - 1);
-                        inventoryStacks.add(result);
-
-                        continue itemTargetLoop;
-                    }
-                }
-            }
-
-            // we cannot get the item
-            return false;
-        }
-
-        return true;
-    }
-
 }
