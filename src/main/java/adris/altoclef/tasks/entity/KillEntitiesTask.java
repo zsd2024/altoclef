@@ -26,8 +26,3 @@ public class KillEntitiesTask extends DoToClosestEntityTask {
         super(KillEntityTask::new, entities);
     }
 }
-
-    public KillEntitiesTask(Class<?>... entities) {
-        super(KillEntityTask::new, entities);
-    }
-}

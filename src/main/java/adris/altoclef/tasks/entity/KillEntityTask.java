@@ -52,27 +52,3 @@ public class KillEntityTask extends AbstractKillEntityTask {
         return "正在击杀 " + target.getType().getTranslationKey();
     }
 }
-
-    public KillEntityTask(Entity entity, double maintainDistance, double combatGuardLowerRange, double combatGuardLowerFieldRadius) {
-        super(maintainDistance, combatGuardLowerRange, combatGuardLowerFieldRadius);
-        target = entity;
-    }
-
-    @Override
-    protected Optional<Entity> getEntityTarget(AltoClef mod) {
-        return Optional.of(target);
-    }
-
-    @Override
-    protected boolean isSubEqual(AbstractDoToEntityTask other) {
-        if (other instanceof KillEntityTask task) {
-            return Objects.equals(task.target, target);
-        }
-        return false;
-    }
-
-    @Override
-    protected String toDebugString() {
-        return "Killing " + target.getType().getTranslationKey();
-    }
-}
