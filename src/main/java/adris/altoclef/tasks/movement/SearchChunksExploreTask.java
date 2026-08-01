@@ -19,7 +19,7 @@ import java.util.Set;
  * <p>
  * 例如，如果您希望探索整个沙漠，此函数将返回区块是否为沙漠区块。
  */
-public class SearchChunksExploreTask extends Task {
+public abstract class SearchChunksExploreTask extends Task {
 
     private final Object searcherMutex = new Object(); // 搜索器互斥锁
     private final Set<ChunkPos> alreadyExplored = new HashSet<>(); // 已探索的区块位置集合

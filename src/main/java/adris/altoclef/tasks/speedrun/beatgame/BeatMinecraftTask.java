@@ -290,15 +290,6 @@ public class BeatMinecraftTask extends Task {
         addCookFoodTasks(mod);
     }
 
-            pair.setRight(10 / distance * 77.3);
-
-            return pair;
-        }, a -> itemStorage.hasItem(Items.BUCKET), false, true, true));
-
-        addSmeltTasks(mod);
-        addCookFoodTasks(mod);
-    }
-
     /**
      * Returns the BeatMinecraftConfig instance.
      * If it is not already initialized, it initializes and returns a new instance.

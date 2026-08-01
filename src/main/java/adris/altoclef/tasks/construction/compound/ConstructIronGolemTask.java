@@ -14,7 +14,7 @@ import net.minecraft.entity.passive.IronGolemEntity;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import //#if MC <= 11605
+//#if MC <= 11605
 //$$ import net.minecraft.util.math.Direction;
 //#endif
 
