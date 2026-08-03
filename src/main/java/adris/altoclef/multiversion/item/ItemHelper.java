@@ -1,4 +1,4 @@
-package adris.altoclef.multiviversion.item;
+package adris.altoclef.multiversion.item;
 
 import adris.altoclef.mixins.AxeItemAccessor;
 import adris.altoclef.mixins.MiningToolItemAccessor;

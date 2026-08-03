@@ -1,4 +1,4 @@
-package adris.altoclef.multivoclef.multiversion;
+package adris.altoclef.multiversion;
 
 import net.minecraft.util.Identifier;
 
