@@ -27,7 +27,7 @@ public class PlayerExtraController {
     public PlayerExtraController(AltoClef mod) {
         this.mod = mod;
 
-        EventBus.subscribe(BlockBreakingEvent.class, evt -> onBlockBreak(evt.pos, evt.progress));
+        EventBus.subscribe(BlockBreakingEvent.class, evt -> onBlockBreak(evt.blockPos, evt.progress));
         EventBus.subscribe(BlockBreakingCancelEvent.class, evt -> onBlockStopBreaking());
     }
 
