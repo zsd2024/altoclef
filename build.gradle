@@ -14,8 +14,8 @@ buildscript {
     }
 
     dependencies {
-        // 保持原有 Loom 版本，如需升级可改为 1.7-SNAPSHOT（前提是仓库中存在）
-        classpath 'fabric-loom:fabric-loom.gradle.plugin:1.0-SNAPSHOT'
+        // Loom 1.12.7 是最后一个支持 Gradle 8.x 的版本
+        classpath 'fabric-loom:fabric-loom.gradle.plugin:1.12.7'
     }
 }
 

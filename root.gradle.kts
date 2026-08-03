@@ -1,5 +1,5 @@
 plugins {
-    id("fabric-loom") version "1.7-SNAPSHOT" apply false
+    id("fabric-loom") version "1.12.7" apply false
     id("com.replaymod.preprocess") version "221276c7d4"
 }
 
